@@ -138,7 +138,7 @@ fun MainDashboard(
             Spacer(Modifier.height(16.dp))
 
             categories.forEach {
-                CategoryRow(it, onNavigate)
+                CategoryRow(it) { onNavigate(it.destination) }
                 Spacer(Modifier.height(12.dp))
             }
 
@@ -163,7 +163,7 @@ data class DashboardCategory(
 @Composable
 private fun CategoryRow(
     category: DashboardCategory,
-    onNavigate: (String) -> Unit
+    onNavigate: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -174,7 +174,7 @@ private fun CategoryRow(
                 ),
                 RoundedCornerShape(18.dp)
             )
-            .clickable { onNavigate(category.destination) }
+            .clickable { onNavigate() }
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

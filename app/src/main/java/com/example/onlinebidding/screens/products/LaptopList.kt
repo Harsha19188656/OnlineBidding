@@ -1,15 +1,15 @@
-package com.example.onlinebidding.screens.products
+package com.example.onlinebidding.products
 
-import com.example.onlinebidding.R
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicText
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -18,20 +18,18 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+import com.example.onlinebidding.R
 
-/* ------------------ ROUTE ------------------ */
-const val AUCTION_DETAILS_ROUTE = "auction_details"
+/* ---------------- DATA ---------------- */
 
-/* ------------------ DATA ------------------ */
 data class Laptop(
     val name: String,
     val specs: String,
-    val rating: String,
+    val rating: Double,
     val price: String,
     val imageRes: Int
 )
@@ -40,239 +38,175 @@ private val laptops = listOf(
     Laptop(
         "MacBook Pro 16\" M3",
         "Apple M3 Max · 48GB · 1TB SSD",
-        "4.9",
+        4.9,
         "₹1,85,000",
         R.drawable.ic_macbook
     ),
     Laptop(
         "Dell XPS 15 OLED",
-        "i7-13700H · 32GB · 1TB SSD",
-        "4.7",
+        "Intel i7-13700H · 32GB · 1TB SSD",
+        4.7,
         "₹95,000",
         R.drawable.ic_dell_xps
     ),
     Laptop(
         "ASUS ROG Zephyrus G16",
-        "Ryzen 9 · 32GB · 2TB SSD",
-        "4.8",
+        "Ryzen 9 7940HS · 32GB · 2TB SSD",
+        4.8,
         "₹1,42,000",
         R.drawable.ic_asus_rog
     )
 )
 
-/* ------------------ SCREEN ------------------ */
+/* ---------------- COMPOSABLE ---------------- */
+
 @Composable
 fun LaptopList(
     navController: NavHostController,
     onBack: () -> Unit
 ) {
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black)
-            .padding(16.dp)
+            .background(
+                Brush.verticalGradient(
+                    listOf(Color.Black, Color(0xFF0B0B0B))
+                )
+            )
     ) {
 
         /* ---------- HEADER ---------- */
+
         Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(bottom = 16.dp)
-        ) {
-            BasicText(
-                text = "←",
-                style = TextStyle(
-                    color = Color(0xFFFFC107),
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold
-                ),
-                modifier = Modifier
-                    .clickable { onBack() }
-                    .padding(end = 12.dp)
-            )
-
-            BasicText(
-                text = "Laptops",
-                style = TextStyle(
-                    color = Color(0xFFFFC107),
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            )
-        }
-
-        /* ---------- SEARCH BAR ---------- */
-        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(48.dp)
-                .border(
-                    width = 1.dp,
-                    color = Color(0xFF333333),
-                    shape = RoundedCornerShape(24.dp)
-                )
-                .padding(horizontal = 16.dp),
-            contentAlignment = Alignment.CenterStart
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            BasicText(
-                text = "Search laptops...",
-                style = TextStyle(
-                    color = Color.Gray,
-                    fontSize = 14.sp
-                )
+            IconButton(onClick = onBack) {
+                Icon(Icons.Default.ArrowBack, null, tint = Color(0xFFFFC107))
+            }
+
+            Text(
+                "Laptops",
+                color = Color(0xFFFFC107),
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f)
             )
+
+            Text(laptops.size.toString(), color = Color(0xFFFFC107))
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        /* ---------- SEARCH ---------- */
+
+        Row(
+            modifier = Modifier
+                .padding(horizontal = 16.dp)
+                .height(48.dp)
+                .border(1.dp, Color(0xFFFFC107), RoundedCornerShape(14.dp))
+                .padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Default.Search, null, tint = Color(0xFFFFC107))
+            Spacer(Modifier.width(8.dp))
+            Text("Search laptops...", color = Color.Gray)
+        }
+
+        Spacer(Modifier.height(14.dp))
 
         /* ---------- LIST ---------- */
-        LazyColumn {
+
+        LazyColumn(
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp)
+        ) {
             items(laptops) { laptop ->
-                LaptopCard(
-                    laptop = laptop,
-                    navController = navController
-                )
+                LaptopCard(laptop)
             }
         }
     }
 }
 
-/* ------------------ CARD ------------------ */
+/* ---------------- CARD ---------------- */
+
 @Composable
-fun LaptopCard(
-    laptop: Laptop,
-    navController: NavHostController
-) {
+private fun LaptopCard(laptop: Laptop) {
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 10.dp)
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(Color(0xFF111111), Color(0xFF000000))
-                ),
-                shape = RoundedCornerShape(18.dp)
-            )
-            .border(
-                width = 1.dp,
-                color = Color(0xFF3A2A00),
-                shape = RoundedCornerShape(18.dp)
-            )
-            .padding(16.dp)
+            .border(1.dp, Color(0xFF3A2A00), RoundedCornerShape(22.dp))
+            .background(Color(0xFF141414), RoundedCornerShape(22.dp))
+            .padding(14.dp)
     ) {
 
-        /* ---------- TOP ROW ---------- */
         Row(verticalAlignment = Alignment.CenterVertically) {
 
             Image(
-                painter = painterResource(id = laptop.imageRes),
+                painter = painterResource(laptop.imageRes),
                 contentDescription = laptop.name,
                 modifier = Modifier
-                    .size(64.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(Color(0xFF121212)),
+                    .size(74.dp)
+                    .clip(RoundedCornerShape(16.dp)),
                 contentScale = ContentScale.Crop
             )
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(Modifier.width(12.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-                BasicText(
-                    text = laptop.name,
-                    style = TextStyle(
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        laptop.name,
                         color = Color.White,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        modifier = Modifier.weight(1f)
                     )
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                BasicText(
-                    text = laptop.specs,
-                    style = TextStyle(
-                        color = Color.LightGray,
-                        fontSize = 13.sp
+                    Text(
+                        "View",
+                        color = Color(0xFFFFC107),
+                        fontSize = 12.sp
                     )
-                )
-            }
-
-            /* ✅ ONLY NAVIGATION */
-            BasicText(
-                text = "View",
-                style = TextStyle(
-                    color = Color(0xFFFFC107),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold
-                ),
-                modifier = Modifier.clickable {
-                    navController.navigate(AUCTION_DETAILS_ROUTE)
                 }
-            )
-        }
 
-        Spacer(modifier = Modifier.height(10.dp))
+                Spacer(Modifier.height(4.dp))
 
-        /* ---------- RATING & PRICE ---------- */
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            BasicText(
-                text = "⭐ ${laptop.rating}",
-                style = TextStyle(
-                    color = Color(0xFFFFC107),
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold
+                Text(
+                    laptop.specs,
+                    color = Color(0xFFB0B0B0),
+                    fontSize = 12.sp,
+                    maxLines = 2
                 )
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            BasicText(
-                text = laptop.price,
-                style = TextStyle(
-                    color = Color(0xFFFFC107),
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            )
+
+                Spacer(Modifier.height(6.dp))
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Star, null, tint = Color(0xFFFFC107), modifier = Modifier.size(12.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text(laptop.rating.toString(), color = Color(0xFFFFC107), fontSize = 12.sp)
+                    Spacer(Modifier.width(10.dp))
+                    Text(laptop.price, color = Color(0xFFFFC107), fontWeight = FontWeight.Bold)
+                }
+            }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(Modifier.height(14.dp))
 
-        /* ---------- BUTTONS ---------- */
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            ActionButton(
-                text = "Credits",
-                colors = listOf(Color(0xFF00C853), Color(0xFF009624))
-            )
-            ActionButton(
-                text = "Bid",
-                colors = listOf(Color(0xFFFFA000), Color(0xFFFF6F00))
-            )
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Button(
+                onClick = {},
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00C853))
+            ) { Text("Credits", color = Color.Black) }
+
+            Button(
+                onClick = {},
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF9800))
+            ) { Text("Bid", color = Color.Black) }
         }
-    }
-}
-
-/* ------------------ BUTTON ------------------ */
-@Composable
-fun ActionButton(
-    text: String,
-    colors: List<Color>
-) {
-    Box(
-        modifier = Modifier
-            .width(130.dp)
-            .height(40.dp)
-            .background(
-                brush = Brush.horizontalGradient(colors),
-                shape = RoundedCornerShape(20.dp)
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        BasicText(
-            text = text,
-            style = TextStyle(
-                color = Color.Black,
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp
-            )
-        )
     }
 }

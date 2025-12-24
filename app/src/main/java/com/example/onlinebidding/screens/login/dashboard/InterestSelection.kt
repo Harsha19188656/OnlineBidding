@@ -44,11 +44,6 @@ private data class InterestItemData(
 @Composable
 fun InterestSelection(
     onComplete: (List<String>) -> Unit,
-    onNavigateToLaptopList: () -> Unit,
-    onNavigateToMobileList: () -> Unit,
-    onNavigateToComputerList: () -> Unit,
-    onNavigateToMonitorList: () -> Unit,
-    onNavigateToTabletList: () -> Unit,
     onBack: (() -> Unit)? = null
 ) {
     val ctx = LocalContext.current
@@ -120,14 +115,9 @@ fun InterestSelection(
                             drawableName = item.drawableName,
                             selected = isSelected,
                             onClick = {
-                                when (item.key) {
-                                    "laptops" -> onNavigateToLaptopList()
-                                    "mobiles" -> onNavigateToMobileList()
-                                    "computers" -> onNavigateToComputerList()
-                                    "monitors" -> onNavigateToMonitorList()
-                                    "tablets" -> onNavigateToTabletList()
-                                }
                                 toggle(item.key)
+                                // Immediately go to dashboard with current selected interests
+                                onComplete(selected.filter { it.value }.keys.toList())
                             }
                         )
                     }
