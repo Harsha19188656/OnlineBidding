@@ -5,23 +5,34 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.compose.ui.platform.LocalContext
-import android.widget.Toast
-import com.example.onlinebidding.products.LaptopList
-import com.example.onlinebidding.products.laptopItems
 import com.example.onlinebidding.screens.splash.*
 import com.example.onlinebidding.screens.login.*
+import com.example.onlinebidding.screens.login.dashboard.ProfileScreen
+import com.example.onlinebidding.screens.login.dashboard.UserData
 import com.example.onlinebidding.screens.welcome.Welcome
 import com.example.onlinebidding.screens.interest.InterestSelection
 import com.example.onlinebidding.screens.dashboard.*
-import com.example.onlinebidding.screens.profile.*
 import com.example.onlinebidding.screens.trending.TrendingAuctions
 import com.example.onlinebidding.screens.flash.FlashAuctions
-import com.example.onlinebidding.screens.search.Search
+import com.example.onlinebidding.screens.login.dashboard.Search
 import com.example.onlinebidding.screens.products.*
-import com.example.onlinebidding.screens.products.TabletProduct
-import com.example.onlinebidding.screens.products.TabletSeller
+import com.example.onlinebidding.products.LaptopList
 import com.example.onlinebidding.products.TabletListScreen
+import com.example.onlinebidding.screens.products.MobileProduct
+import com.example.onlinebidding.screens.products.Product as ProductDetails
+import com.example.onlinebidding.screens.products.Seller as SellerDetails
+import com.example.onlinebidding.screens.products.CreditsScreen
+import com.example.onlinebidding.screens.products.PaymentMethodScreen
+import com.example.onlinebidding.screens.products.PaymentProcessingScreen
+import com.example.onlinebidding.screens.products.PaymentSuccessScreen
+import com.example.onlinebidding.screens.products.UPIEntryScreen
+import com.example.onlinebidding.screens.products.BidCommentsScreen
+import com.example.onlinebidding.screens.products.CreditsState
+import com.example.onlinebidding.screens.products.MobileAuctionDetailScreen
+import com.example.onlinebidding.screens.products.ComputerAuctionDetailScreen
+import com.example.onlinebidding.screens.products.MonitorAuctionDetailScreen
+import com.example.onlinebidding.screens.products.TabletAuctionDetailScreen
+import com.example.onlinebidding.screens.products.AuctionWinnerScreen
 import com.example.onlinebidding.ui.viewmodel.AuthViewModel
 import com.example.onlinebidding.R
 
@@ -29,26 +40,6 @@ import com.example.onlinebidding.R
 
 const val LAPTOP_LIST = "laptop_list"
 const val DELL_XPS_15_DETAILS = "dell_xps_15_details"
-const val LAPTOP_CREDITS = "laptop_credits"
-const val LAPTOP_PAYMENT_METHOD = "laptop_payment_method"
-const val LAPTOP_PAYMENT_PROCESS = "laptop_payment_processing"
-const val LAPTOP_PAYMENT_SUCCESS = "laptop_payment_success"
-const val MOBILE_CREDITS = "mobile_credits"
-const val MOBILE_PAYMENT_METHOD = "mobile_payment_method"
-const val MOBILE_PAYMENT_PROCESS = "mobile_payment_processing"
-const val MOBILE_PAYMENT_SUCCESS = "mobile_payment_success"
-const val COMPUTER_CREDITS = "computer_credits"
-const val COMPUTER_PAYMENT_METHOD = "computer_payment_method"
-const val COMPUTER_PAYMENT_PROCESS = "computer_payment_processing"
-const val COMPUTER_PAYMENT_SUCCESS = "computer_payment_success"
-const val MONITOR_CREDITS = "monitor_credits"
-const val MONITOR_PAYMENT_METHOD = "monitor_payment_method"
-const val MONITOR_PAYMENT_PROCESS = "monitor_payment_processing"
-const val MONITOR_PAYMENT_SUCCESS = "monitor_payment_success"
-const val TABLET_CREDITS = "tablet_credits"
-const val TABLET_PAYMENT_METHOD = "tablet_payment_method"
-const val TABLET_PAYMENT_PROCESS = "tablet_payment_processing"
-const val TABLET_PAYMENT_SUCCESS = "tablet_payment_success"
 
 @Composable
 fun AppNavHost() {
@@ -56,21 +47,15 @@ fun AppNavHost() {
     val navController = rememberNavController()
     val authViewModel: AuthViewModel = viewModel()
     val authState by authViewModel.uiState.collectAsState()
-    val context = LocalContext.current
 
     var userName by remember { mutableStateOf("User") }
     var userEmail by remember { mutableStateOf("user@email.com") }
-    val laptopCredits = remember { mutableStateMapOf<Int, Boolean>() }
-    val mobileCredits = remember { mutableStateMapOf<Int, Boolean>() }
-    val computerCredits = remember { mutableStateMapOf<Int, Boolean>() }
-    val monitorCredits = remember { mutableStateMapOf<Int, Boolean>() }
-    val tabletCredits = remember { mutableStateMapOf<Int, Boolean>() }
 
     LaunchedEffect(authState.token) {
         if (authState.token != null) {
             userEmail = authState.email ?: userEmail
-            navController.navigate("create_profile") {
-                popUpTo("login") { inclusive = true }
+            navController.navigate(route = "create_profile") {
+                popUpTo(route = "login") { inclusive = true }
             }
         }
     }
@@ -84,23 +69,23 @@ fun AppNavHost() {
 
         composable("splash") {
             SplashScreen {
-                navController.navigate("get_started") {
-                    popUpTo("splash") { inclusive = true }
+                navController.navigate(route = "get_started") {
+                    popUpTo(route = "splash") { inclusive = true }
                 }
             }
         }
 
         composable("get_started") {
             GetStartedScreen {
-                navController.navigate("branding")
+                navController.navigate(route = "branding")
             }
         }
 
         composable("branding") {
             BrandingCarousel(
                 onComplete = {
-                    navController.navigate("login") {
-                        popUpTo("branding") { inclusive = true }
+                    navController.navigate(route = "login") {
+                        popUpTo(route = "branding") { inclusive = true }
                     }
                 }
             )
@@ -113,8 +98,8 @@ fun AppNavHost() {
                 onLogin = { email, password ->
                     authViewModel.login(email, password)
                 },
-                onForgotPassword = { navController.navigate("forgot") },
-                onSignUp = { navController.navigate("create_account") },
+                onForgotPassword = { navController.navigate(route = "forgot") },
+                onSignUp = { navController.navigate(route = "create_account") },
                 onGoogleSignUp = {},
                 isLoading = authState.loading,
                 errorMessage = authState.error ?: ""
@@ -124,8 +109,8 @@ fun AppNavHost() {
         composable("create_account") {
             CreateAccount(
                 onAccountCreated = {
-                    navController.navigate("welcome") {
-                        popUpTo("login") { inclusive = true }
+                    navController.navigate(route = "welcome") {
+                        popUpTo(route = "login") { inclusive = true }
                     }
                 },
                 onBack = { navController.popBackStack() }
@@ -134,22 +119,22 @@ fun AppNavHost() {
 
         composable("forgot") {
             ForgotPassword(
-                onSendOTP = { navController.navigate("otp") },
+                onSendOTP = { navController.navigate(route = "otp") },
                 onBack = { navController.popBackStack() }
             )
         }
 
         composable("otp") {
             OTPVerification(
-                onVerify = { navController.navigate("otp_success") },
+                onVerify = { navController.navigate(route = "otp_success") },
                 onBack = { navController.popBackStack() }
             )
         }
 
         composable("otp_success") {
             OTPSuccess {
-                navController.navigate("login") {
-                    popUpTo("login") { inclusive = true }
+                navController.navigate(route = "login") {
+                    popUpTo(route = "login") { inclusive = true }
                 }
             }
         }
@@ -158,14 +143,14 @@ fun AppNavHost() {
             CreateProfile { name, email, _ ->
                 userName = name
                 userEmail = email
-                navController.navigate("welcome")
+                navController.navigate(route = "welcome")
             }
         }
 
         composable("welcome") {
             Welcome(
                 email = userEmail,
-                onContinue = { navController.navigate("interest") }
+                onContinue = { navController.navigate(route = "interest") }
             )
         }
 
@@ -174,8 +159,8 @@ fun AppNavHost() {
         composable("interest") {
             InterestSelection(
                 onComplete = {
-                    navController.navigate("dashboard") {
-                        popUpTo("interest") { inclusive = true }
+                    navController.navigate(route = "dashboard") {
+                        popUpTo(route = "interest") { inclusive = true }
                     }
                 }
             )
@@ -187,7 +172,7 @@ fun AppNavHost() {
             MainDashboard(
                 userName = userName,
                 onNavigate = { route ->
-                    navController.navigate(route)
+                    navController.navigate(route = route)
                 }
             )
         }
@@ -197,417 +182,19 @@ fun AppNavHost() {
         composable(LAPTOP_LIST) {
             LaptopList(
                 navController = navController,
-                onBack = { navController.popBackStack() },
-                creditsPurchased = laptopCredits,
-                onCreditsClick = { index ->
-                    navController.navigate("$LAPTOP_CREDITS/$index")
-                },
-                onBidClick = { index ->
-                    if (laptopCredits[index] == true) {
-                        navController.navigate("laptop_details/$index")
-                    } else {
-                        Toast.makeText(
-                            context,
-                            "Please buy credits to bid on ${laptopItems.getOrNull(index)?.name ?: "this laptop"}",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                        navController.navigate("$LAPTOP_CREDITS/$index")
-                    }
-                }
+                onBack = { navController.popBackStack() }
             )
         }
 
-        /* ---------- LAPTOP DETAILS ---------- */
-
-        composable("laptop_details/{index}") { backStackEntry ->
+        /* ---------- LAPTOP AUCTION DETAIL ---------- */
+        
+        composable("auction_detail/{index}") { backStackEntry ->
             val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
-            AuctionDetailsScreen(
+            AuctionDetailScreen(
                 laptopIndex = index,
                 onBack = { navController.popBackStack() },
-                onPlaceBid = { /* Handle bid */ }
-            )
-        }
-
-        /* ---------- LAPTOP CREDIT FLOW ---------- */
-        composable("$LAPTOP_CREDITS/{index}") { backStackEntry ->
-            val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
-            val laptop = laptopItems.getOrElse(index) { laptopItems[0] }
-            CreditsScreen(
-                itemName = laptop.name,
-                onBack = { navController.popBackStack() },
-                onPay = { navController.navigate("$LAPTOP_PAYMENT_METHOD/$index") }
-            )
-        }
-
-        composable("$LAPTOP_PAYMENT_METHOD/{index}") { backStackEntry ->
-            val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
-            PaymentMethodScreen(
-                amount = 100,
-                onBack = { navController.popBackStack() },
-                onPay = { method ->
-                    navController.navigate("$LAPTOP_PAYMENT_PROCESS/$index/$method")
-                }
-            )
-        }
-
-        composable("$LAPTOP_PAYMENT_PROCESS/{index}/{method}") { backStackEntry ->
-            val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
-            val method = backStackEntry.arguments?.getString("method") ?: "phonepe"
-            PaymentProcessingScreen(
-                method = method,
-                onFinished = {
-                    navController.navigate("$LAPTOP_PAYMENT_SUCCESS/$index/$method") {
-                        popUpTo("$LAPTOP_PAYMENT_METHOD/$index") { inclusive = false }
-                    }
-                }
-            )
-        }
-
-        composable("$LAPTOP_PAYMENT_SUCCESS/{index}/{method}") { backStackEntry ->
-            val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
-            val laptop = laptopItems.getOrElse(index) { laptopItems[0] }
-            LaunchedEffect(index) {
-                laptopCredits[index] = true
-            }
-            PaymentSuccessScreen(
-                itemName = laptop.name,
-                onStartBid = {
-                    navController.navigate("laptop_details/$index") {
-                        popUpTo(LAPTOP_LIST) { inclusive = false }
-                    }
-                }
-            )
-        }
-
-        /* ---------- MOBILE CREDIT FLOW ---------- */
-        composable("$MOBILE_CREDITS/{index}") { backStackEntry ->
-            val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
-            val mobile = mobiles.getOrElse(index) { mobiles[0] }
-            CreditsScreen(
-                itemName = mobile.name,
-                onBack = { navController.popBackStack() },
-                onPay = { navController.navigate("$MOBILE_PAYMENT_METHOD/$index") }
-            )
-        }
-
-        composable("$MOBILE_PAYMENT_METHOD/{index}") { backStackEntry ->
-            val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
-            PaymentMethodScreen(
-                amount = 100,
-                onBack = { navController.popBackStack() },
-                onPay = { method ->
-                    navController.navigate("$MOBILE_PAYMENT_PROCESS/$index/$method")
-                }
-            )
-        }
-
-        composable("$MOBILE_PAYMENT_PROCESS/{index}/{method}") { backStackEntry ->
-            val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
-            val method = backStackEntry.arguments?.getString("method") ?: "phonepe"
-            PaymentProcessingScreen(
-                method = method,
-                onFinished = {
-                    navController.navigate("$MOBILE_PAYMENT_SUCCESS/$index/$method") {
-                        popUpTo("$MOBILE_PAYMENT_METHOD/$index") { inclusive = false }
-                    }
-                }
-            )
-        }
-
-        composable("$MOBILE_PAYMENT_SUCCESS/{index}/{method}") { backStackEntry ->
-            val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
-            val mobile = mobiles.getOrElse(index) { mobiles[0] }
-            LaunchedEffect(index) {
-                mobileCredits[index] = true
-            }
-            PaymentSuccessScreen(
-                itemName = mobile.name,
-                onStartBid = {
-                    navController.navigate("mobile_details/$index") {
-                        popUpTo("mobile_list") { inclusive = false }
-                    }
-                }
-            )
-        }
-
-        /* ---------- COMPUTER CREDIT FLOW ---------- */
-        composable("$COMPUTER_CREDITS/{index}") { backStackEntry ->
-            val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
-            val computer = computerList.getOrElse(index) { computerList[0] }
-            CreditsScreen(
-                itemName = computer.name,
-                onBack = { navController.popBackStack() },
-                onPay = { navController.navigate("$COMPUTER_PAYMENT_METHOD/$index") }
-            )
-        }
-
-        composable("$COMPUTER_PAYMENT_METHOD/{index}") { backStackEntry ->
-            val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
-            PaymentMethodScreen(
-                amount = 100,
-                onBack = { navController.popBackStack() },
-                onPay = { method ->
-                    navController.navigate("$COMPUTER_PAYMENT_PROCESS/$index/$method")
-                }
-            )
-        }
-
-        composable("$COMPUTER_PAYMENT_PROCESS/{index}/{method}") { backStackEntry ->
-            val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
-            val method = backStackEntry.arguments?.getString("method") ?: "phonepe"
-            PaymentProcessingScreen(
-                method = method,
-                onFinished = {
-                    navController.navigate("$COMPUTER_PAYMENT_SUCCESS/$index/$method") {
-                        popUpTo("$COMPUTER_PAYMENT_METHOD/$index") { inclusive = false }
-                    }
-                }
-            )
-        }
-
-        composable("$COMPUTER_PAYMENT_SUCCESS/{index}/{method}") { backStackEntry ->
-            val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
-            val computer = computerList.getOrElse(index) { computerList[0] }
-            LaunchedEffect(index) {
-                computerCredits[index] = true
-            }
-            PaymentSuccessScreen(
-                itemName = computer.name,
-                onStartBid = {
-                    navController.navigate("computer_details/$index") {
-                        popUpTo("computer_list") { inclusive = false }
-                    }
-                }
-            )
-        }
-
-        /* ---------- MONITOR CREDIT FLOW ---------- */
-        composable("$MONITOR_CREDITS/{index}") { backStackEntry ->
-            val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
-            val monitor = monitorList.getOrElse(index) { monitorList[0] }
-            CreditsScreen(
-                itemName = monitor.name,
-                onBack = { navController.popBackStack() },
-                onPay = { navController.navigate("$MONITOR_PAYMENT_METHOD/$index") }
-            )
-        }
-
-        composable("$MONITOR_PAYMENT_METHOD/{index}") { backStackEntry ->
-            val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
-            PaymentMethodScreen(
-                amount = 100,
-                onBack = { navController.popBackStack() },
-                onPay = { method ->
-                    navController.navigate("$MONITOR_PAYMENT_PROCESS/$index/$method")
-                }
-            )
-        }
-
-        composable("$MONITOR_PAYMENT_PROCESS/{index}/{method}") { backStackEntry ->
-            val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
-            val method = backStackEntry.arguments?.getString("method") ?: "phonepe"
-            PaymentProcessingScreen(
-                method = method,
-                onFinished = {
-                    navController.navigate("$MONITOR_PAYMENT_SUCCESS/$index/$method") {
-                        popUpTo("$MONITOR_PAYMENT_METHOD/$index") { inclusive = false }
-                    }
-                }
-            )
-        }
-
-        composable("$MONITOR_PAYMENT_SUCCESS/{index}/{method}") { backStackEntry ->
-            val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
-            val monitor = monitorList.getOrElse(index) { monitorList[0] }
-            LaunchedEffect(index) {
-                monitorCredits[index] = true
-            }
-            PaymentSuccessScreen(
-                itemName = monitor.name,
-                onStartBid = {
-                    navController.navigate("monitor_details/$index") {
-                        popUpTo("monitor_list") { inclusive = false }
-                    }
-                }
-            )
-        }
-
-        /* ---------- TABLET CREDIT FLOW ---------- */
-        composable("$TABLET_CREDITS/{index}") { backStackEntry ->
-            val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
-            val tablets = listOf(
-                TabletProduct(
-                    name = "iPad Pro 12.9\" M2",
-                    imageRes = R.drawable.ic_ipadtablet,
-                    imageResList = listOf(R.drawable.ic_ipadtablet, R.drawable.ic_ipadtablet),
-                    currentBid = 85000,
-                    seller = TabletSeller(
-                        name = "Apple Store Elite",
-                        verified = true,
-                        rating = 5.0
-                    ),
-                    endTime = 30,
-                    registeredBidders = 26,
-                    specs = mapOf(
-                        "Display" to "12.9\" Liquid",
-                        "Camera" to "12MP Wide",
-                        "Processor" to "M2",
-                        "Storage" to "512GB"
-                    ),
-                    condition = "Excellent",
-                    conditionDetails = "Premium condition with Magic Keyboard and Apple Pencil included."
-                ),
-                TabletProduct(
-                    name = "Samsung Galaxy Tab S9 Ultra",
-                    imageRes = R.drawable.ic_samsungtablet,
-                    imageResList = listOf(R.drawable.ic_samsungtablet, R.drawable.ic_samsungtablet),
-                    currentBid = 72000,
-                    seller = TabletSeller(
-                        name = "TabletZone",
-                        verified = true,
-                        rating = 4.8
-                    ),
-                    endTime = 30,
-                    registeredBidders = 20,
-                    specs = mapOf(
-                        "Display" to "14.6\" Dynamic",
-                        "Stylus" to "Included",
-                        "Storage" to "256GB",
-                        "Connectivity" to "WiFi"
-                    ),
-                    condition = "Very Good",
-                    conditionDetails = "Includes S Pen and Book Cover Keyboard. Perfect for work & creativity."
-                ),
-                TabletProduct(
-                    name = "Microsoft Surface Pro 9",
-                    imageRes = R.drawable.ic_surfacetablet,
-                    imageResList = listOf(R.drawable.ic_surfacetablet, R.drawable.ic_surfacetablet),
-                    currentBid = 58000,
-                    seller = TabletSeller(
-                        name = "Microsoft Store",
-                        verified = true,
-                        rating = 4.6
-                    ),
-                    endTime = 30,
-                    registeredBidders = 16,
-                    specs = mapOf(
-                        "Processor" to "Intel Core i7",
-                        "Storage" to "512GB SSD",
-                        "Display" to "13\" PixelSense"
-                    ),
-                    condition = "New",
-                    conditionDetails = "Versatile 2-in-1 tablet perfect for productivity."
-                )
-            )
-            val tablet = tablets.getOrElse(index) { tablets[0] }
-            CreditsScreen(
-                itemName = tablet.name,
-                onBack = { navController.popBackStack() },
-                onPay = { navController.navigate("$TABLET_PAYMENT_METHOD/$index") }
-            )
-        }
-
-        composable("$TABLET_PAYMENT_METHOD/{index}") { backStackEntry ->
-            val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
-            PaymentMethodScreen(
-                amount = 100,
-                onBack = { navController.popBackStack() },
-                onPay = { method ->
-                    navController.navigate("$TABLET_PAYMENT_PROCESS/$index/$method")
-                }
-            )
-        }
-
-        composable("$TABLET_PAYMENT_PROCESS/{index}/{method}") { backStackEntry ->
-            val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
-            val method = backStackEntry.arguments?.getString("method") ?: "phonepe"
-            PaymentProcessingScreen(
-                method = method,
-                onFinished = {
-                    navController.navigate("$TABLET_PAYMENT_SUCCESS/$index/$method") {
-                        popUpTo("$TABLET_PAYMENT_METHOD/$index") { inclusive = false }
-                    }
-                }
-            )
-        }
-
-        composable("$TABLET_PAYMENT_SUCCESS/{index}/{method}") { backStackEntry ->
-            val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
-            val tablets = listOf(
-                TabletProduct(
-                    name = "iPad Pro 12.9\" M2",
-                    imageRes = R.drawable.ic_ipadtablet,
-                    imageResList = listOf(R.drawable.ic_ipadtablet, R.drawable.ic_ipadtablet),
-                    currentBid = 85000,
-                    seller = TabletSeller(
-                        name = "Apple Store Elite",
-                        verified = true,
-                        rating = 5.0
-                    ),
-                    endTime = 30,
-                    registeredBidders = 26,
-                    specs = mapOf(
-                        "Display" to "12.9\" Liquid",
-                        "Camera" to "12MP Wide",
-                        "Processor" to "M2",
-                        "Storage" to "512GB"
-                    ),
-                    condition = "Excellent",
-                    conditionDetails = "Premium condition with Magic Keyboard and Apple Pencil included."
-                ),
-                TabletProduct(
-                    name = "Samsung Galaxy Tab S9 Ultra",
-                    imageRes = R.drawable.ic_samsungtablet,
-                    imageResList = listOf(R.drawable.ic_samsungtablet, R.drawable.ic_samsungtablet),
-                    currentBid = 72000,
-                    seller = TabletSeller(
-                        name = "TabletZone",
-                        verified = true,
-                        rating = 4.8
-                    ),
-                    endTime = 30,
-                    registeredBidders = 20,
-                    specs = mapOf(
-                        "Display" to "14.6\" Dynamic",
-                        "Stylus" to "Included",
-                        "Storage" to "256GB",
-                        "Connectivity" to "WiFi"
-                    ),
-                    condition = "Very Good",
-                    conditionDetails = "Includes S Pen and Book Cover Keyboard. Perfect for work & creativity."
-                ),
-                TabletProduct(
-                    name = "Microsoft Surface Pro 9",
-                    imageRes = R.drawable.ic_surfacetablet,
-                    imageResList = listOf(R.drawable.ic_surfacetablet, R.drawable.ic_surfacetablet),
-                    currentBid = 58000,
-                    seller = TabletSeller(
-                        name = "Microsoft Store",
-                        verified = true,
-                        rating = 4.6
-                    ),
-                    endTime = 30,
-                    registeredBidders = 16,
-                    specs = mapOf(
-                        "Processor" to "Intel Core i7",
-                        "Storage" to "512GB SSD",
-                        "Display" to "13\" PixelSense"
-                    ),
-                    condition = "New",
-                    conditionDetails = "Versatile 2-in-1 tablet perfect for productivity."
-                )
-            )
-            val tablet = tablets.getOrElse(index) { tablets[0] }
-            LaunchedEffect(index) {
-                tabletCredits[index] = true
-            }
-            PaymentSuccessScreen(
-                itemName = tablet.name,
-                onStartBid = {
-                    navController.navigate("tablet_details/$index") {
-                        popUpTo("tablet_list") { inclusive = false }
-                    }
-                }
+                onSpecsClick = { /* Show specs dialog */ },
+                onBidClick = { navController.navigate("bid_comments/$index") }
             )
         }
 
@@ -624,23 +211,19 @@ fun AppNavHost() {
         composable("mobile_list") {
             MobileList(
                 navController = navController,
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        /* ---------- MOBILE AUCTION DETAIL ---------- */
+        
+        composable("mobile_auction_detail/{index}") { backStackEntry ->
+            val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
+            MobileAuctionDetailScreen(
+                mobileIndex = index,
                 onBack = { navController.popBackStack() },
-                creditsPurchased = mobileCredits,
-                onCreditsClick = { index ->
-                    navController.navigate("$MOBILE_CREDITS/$index")
-                },
-                onBidClick = { index ->
-                    if (mobileCredits[index] == true) {
-                        navController.navigate("mobile_details/$index")
-                    } else {
-                        Toast.makeText(
-                            context,
-                            "Please buy credits to bid on ${mobiles.getOrNull(index)?.name ?: "this mobile"}",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                        navController.navigate("$MOBILE_CREDITS/$index")
-                    }
-                }
+                onSpecsClick = { /* Show specs dialog */ },
+                onBidClick = { navController.navigate("bid_comments/mobile/$index") }
             )
         }
 
@@ -648,10 +231,34 @@ fun AppNavHost() {
 
         composable("mobile_details/{index}") { backStackEntry ->
             val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
+            val mobiles = listOf(
+                MobileProduct(
+                    name = "iPhone 15 Pro Max",
+                    description = "A17 Pro Chip · 512GB · Titanium Design",
+                    rating = 4.8,
+                    price = "₹1,28,000",
+                    image = R.drawable.ic_appleiphone15pro
+                ),
+                MobileProduct(
+                    name = "Samsung Galaxy S24 Ultra",
+                    description = "Snapdragon 8 Gen 3 · 256GB · S Pen",
+                    rating = 4.6,
+                    price = "₹98,000",
+                    image = R.drawable.ic_samsunggalaxys24ultra
+                ),
+                MobileProduct(
+                    name = "OnePlus 12 Pro",
+                    description = "Snapdragon 8 Gen 3 · 256GB · Fast Charging",
+                    rating = 4.9,
+                    price = "₹54,000",
+                    image = R.drawable.ic_oneplus12pro
+                )
+            )
             MobileDetails(
-                mobileIndex = index,
-                onBack = { navController.popBackStack() },
-                onPlaceBid = { /* Handle bid */ }
+                product = mobiles.getOrElse(index) { mobiles[0] },
+                navController = navController,
+                index = index,
+                onBack = { navController.popBackStack() }
             )
         }
 
@@ -660,23 +267,19 @@ fun AppNavHost() {
         composable("computer_list") {
             ComputerList(
                 navController = navController,
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        /* ---------- COMPUTER AUCTION DETAIL ---------- */
+        
+        composable("computer_auction_detail/{index}") { backStackEntry ->
+            val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
+            ComputerAuctionDetailScreen(
+                computerIndex = index,
                 onBack = { navController.popBackStack() },
-                creditsPurchased = computerCredits,
-                onCreditsClick = { index ->
-                    navController.navigate("$COMPUTER_CREDITS/$index")
-                },
-                onBidClick = { index ->
-                    if (computerCredits[index] == true) {
-                        navController.navigate("computer_details/$index")
-                    } else {
-                        Toast.makeText(
-                            context,
-                            "Please buy credits to bid on ${computerList.getOrNull(index)?.name ?: "this computer"}",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                        navController.navigate("$COMPUTER_CREDITS/$index")
-                    }
-                }
+                onSpecsClick = { /* Show specs dialog */ },
+                onBidClick = { navController.navigate("bid_comments/computer/$index") }
             )
         }
 
@@ -684,10 +287,68 @@ fun AppNavHost() {
 
         composable("computer_details/{index}") { backStackEntry ->
             val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
+            val computers = listOf(
+                ProductDetails(
+                    name = "Custom Gaming PC RTX",
+                    imageRes = R.drawable.ic_pcgamming,
+                    currentBid = 285000,
+                    seller = SellerDetails(
+                        name = "TechStore Pro",
+                        verified = true,
+                        rating = 4.9
+                    ),
+                    endTime = 3600,
+                    registeredBidders = 45,
+                    specs = mapOf(
+                        "RAM" to "64GB DDR5",
+                        "Storage" to "2TB NVMe + 4TB HDD",
+                        "GPU" to "RTX 4090"
+                    ),
+                    condition = "New",
+                    conditionDetails = "Brand new custom gaming PC with top-tier components."
+                ),
+                ProductDetails(
+                    name = "Mac Studio M2 Ultra",
+                    imageRes = R.drawable.ic_macstudio,
+                    currentBid = 310000,
+                    seller = SellerDetails(
+                        name = "Apple Authorized",
+                        verified = true,
+                        rating = 5.0
+                    ),
+                    endTime = 7200,
+                    registeredBidders = 32,
+                    specs = mapOf(
+                        "Memory" to "192GB Unified",
+                        "Storage" to "4TB SSD",
+                        "Processor" to "M2 Ultra"
+                    ),
+                    condition = "New",
+                    conditionDetails = "Sealed box, never opened. Full warranty included."
+                ),
+                ProductDetails(
+                    name = "Workstation HP Z8 G5",
+                    imageRes = R.drawable.ic_hp_z5,
+                    currentBid = 195000,
+                    seller = SellerDetails(
+                        name = "Enterprise Solutions",
+                        verified = true,
+                        rating = 4.7
+                    ),
+                    endTime = 5400,
+                    registeredBidders = 28,
+                    specs = mapOf(
+                        "RAM" to "128GB ECC DDR5",
+                        "Storage" to "4TB NVMe RAID",
+                        "CPU" to "Xeon Processor"
+                    ),
+                    condition = "Used - Excellent",
+                    conditionDetails = "Professional workstation in excellent condition."
+                )
+            )
             ComputerDetailsScreen(
-                computerIndex = index,
-                onBack = { navController.popBackStack() },
-                onPlaceBid = { /* Handle bid */ }
+                product = computers.getOrElse(index) { computers[0] },
+                onBack = { navController.popBackStack() }
             )
         }
 
@@ -696,23 +357,19 @@ fun AppNavHost() {
         composable("monitor_list") {
             MonitorList(
                 navController = navController,
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        /* ---------- MONITOR AUCTION DETAIL ---------- */
+        
+        composable("monitor_auction_detail/{index}") { backStackEntry ->
+            val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
+            MonitorAuctionDetailScreen(
+                monitorIndex = index,
                 onBack = { navController.popBackStack() },
-                creditsPurchased = monitorCredits,
-                onCreditsClick = { index ->
-                    navController.navigate("$MONITOR_CREDITS/$index")
-                },
-                onBidClick = { index ->
-                    if (monitorCredits[index] == true) {
-                        navController.navigate("monitor_details/$index")
-                    } else {
-                        Toast.makeText(
-                            context,
-                            "Please buy credits to bid on ${monitorList.getOrNull(index)?.name ?: "this monitor"}",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                        navController.navigate("$MONITOR_CREDITS/$index")
-                    }
-                }
+                onSpecsClick = { /* Show specs dialog */ },
+                onBidClick = { navController.navigate("bid_comments/monitor/$index") }
             )
         }
 
@@ -720,14 +377,83 @@ fun AppNavHost() {
 
         composable("monitor_details/{index}") { backStackEntry ->
             val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
+            val monitors = listOf(
+                ProductDetails(
+                    name = "LG UltraGear 27\"",
+                    imageRes = R.drawable.ic_monitor_lg,
+                    currentBid = 32000,
+                    seller = SellerDetails(
+                        name = "LG Official Store",
+                        verified = true,
+                        rating = 4.8
+                    ),
+                    endTime = 1800,
+                    registeredBidders = 18,
+                    specs = mapOf(
+                        "Refresh Rate" to "144Hz",
+                        "Resolution" to "QHD",
+                        "Panel" to "IPS"
+                    ),
+                    condition = "New",
+                    conditionDetails = "Brand new gaming monitor with excellent color accuracy."
+                ),
+                ProductDetails(
+                    name = "Samsung Odyssey G7",
+                    imageRes = R.drawable.ic_monitor_samsung,
+                    currentBid = 45000,
+                    seller = SellerDetails(
+                        name = "Samsung Store",
+                        verified = true,
+                        rating = 4.9
+                    ),
+                    endTime = 2400,
+                    registeredBidders = 22,
+                    specs = mapOf(
+                        "Refresh Rate" to "240Hz",
+                        "Resolution" to "QHD Curved",
+                        "Panel" to "VA"
+                    ),
+                    condition = "New",
+                    conditionDetails = "Curved gaming monitor with ultra-fast refresh rate."
+                ),
+                ProductDetails(
+                    name = "Dell UltraSharp",
+                    imageRes = R.drawable.ic_monitor_dell,
+                    currentBid = 52000,
+                    seller = SellerDetails(
+                        name = "Dell Authorized",
+                        verified = true,
+                        rating = 4.7
+                    ),
+                    endTime = 3000,
+                    registeredBidders = 15,
+                    specs = mapOf(
+                        "Resolution" to "4K",
+                        "Connectivity" to "USB-C",
+                        "Panel" to "IPS"
+                    ),
+                    condition = "New",
+                    conditionDetails = "Professional 4K monitor perfect for content creation."
+                )
+            )
             MonitorDetailsScreen(
-                monitorIndex = index,
+                product = monitors.getOrElse(index) { monitors[0] },
                 onBack = { navController.popBackStack() },
                 onPlaceBid = { /* Handle bid */ }
             )
         }
 
         /* ---------- TABLET LIST ---------- */
+
+        composable("tablet_auction_detail/{index}") { backStackEntry ->
+            val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
+            TabletAuctionDetailScreen(
+                tabletIndex = index,
+                onBack = { navController.popBackStack() },
+                onSpecsClick = { /* Show specs dialog */ },
+                onBidClick = { navController.navigate("bid_comments/tablet/$index") }
+            )
+        }
 
         composable("tablet_list") {
             val tablets = listOf(
@@ -736,7 +462,7 @@ fun AppNavHost() {
                     name = "iPad Pro 12.9\" M2",
                     imageRes = R.drawable.ic_ipadtablet,
                     currentBid = 85000,
-                    seller = com.example.onlinebidding.model.Seller("Apple Store", 4.9),
+                    seller = com.example.onlinebidding.model.Seller("Apple Store", verified = true, rating = 4.9),
                     specs = mapOf("Display" to "12.9\" Retina XDR", "Storage" to "512GB")
                 ),
                 com.example.onlinebidding.model.Product(
@@ -744,7 +470,7 @@ fun AppNavHost() {
                     name = "Samsung Galaxy Tab S9",
                     imageRes = R.drawable.ic_samsungtablet,
                     currentBid = 72000,
-                    seller = com.example.onlinebidding.model.Seller("Samsung Official", 4.8),
+                    seller = com.example.onlinebidding.model.Seller("Samsung Official", verified = true, rating = 4.8),
                     specs = mapOf("Processor" to "Snapdragon 8 Gen 2", "Storage" to "256GB")
                 ),
                 com.example.onlinebidding.model.Product(
@@ -752,32 +478,13 @@ fun AppNavHost() {
                     name = "Microsoft Surface Pro 9",
                     imageRes = R.drawable.ic_surfacetablet,
                     currentBid = 58000,
-                    seller = com.example.onlinebidding.model.Seller("Microsoft Store", 4.6),
+                    seller = com.example.onlinebidding.model.Seller("Microsoft Store", verified = true, rating = 4.6),
                     specs = mapOf("Processor" to "Intel Core i7", "Storage" to "512GB SSD")
                 )
             )
             TabletListScreen(
-                onBack = { navController.popBackStack() },
-                creditsPurchased = tabletCredits,
-                onCreditsClick = { product, index ->
-                    navController.navigate("$TABLET_CREDITS/$index")
-                },
-                onBidClick = { product, index ->
-                    if (tabletCredits[index] == true) {
-                        navController.navigate("tablet_details/$index")
-                    } else {
-                        Toast.makeText(
-                            context,
-                            "Please buy credits to bid on ${product.name}",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                        navController.navigate("$TABLET_CREDITS/$index")
-                    }
-                },
-                onViewClick = { product, index ->
-                    val idx = tablets.indexOfFirst { it.id == product.id }
-                    navController.navigate("tablet_details/${if (idx >= 0) idx else 0}")
-                }
+                navController = navController,
+                onBack = { navController.popBackStack() }
             )
         }
 
@@ -786,56 +493,54 @@ fun AppNavHost() {
         composable("tablet_details/{index}") { backStackEntry ->
             val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
             val tablets = listOf(
-                TabletProduct(
+                ProductDetails(
                     name = "iPad Pro 12.9\" M2",
                     imageRes = R.drawable.ic_ipadtablet,
                     currentBid = 85000,
-                    seller = TabletSeller(
-                        name = "Apple Store Elite",
+                    seller = SellerDetails(
+                        name = "Apple Store",
                         verified = true,
-                        rating = 5.0
+                        rating = 4.9
                     ),
-                    endTime = 30,
+                    endTime = 3600,
                     registeredBidders = 26,
                     specs = mapOf(
-                        "Display" to "12.9\" Liquid",
-                        "Camera" to "12MP Wide",
-                        "Processor" to "M2",
-                        "Storage" to "512GB"
+                        "Display" to "12.9\" Retina XDR",
+                        "Storage" to "512GB",
+                        "Processor" to "M2 Chip"
                     ),
-                    condition = "Excellent",
-                    conditionDetails = "Premium condition with Magic Keyboard and Apple Pencil included."
+                    condition = "New",
+                    conditionDetails = "Latest iPad Pro with M2 chip and stunning display."
                 ),
-                TabletProduct(
-                    name = "Samsung Galaxy Tab S9 Ultra",
+                ProductDetails(
+                    name = "Samsung Galaxy Tab S9",
                     imageRes = R.drawable.ic_samsungtablet,
                     currentBid = 72000,
-                    seller = TabletSeller(
-                        name = "TabletZone",
+                    seller = SellerDetails(
+                        name = "Samsung Official",
                         verified = true,
                         rating = 4.8
                     ),
-                    endTime = 30,
-                    registeredBidders = 20,
+                    endTime = 4200,
+                    registeredBidders = 18,
                     specs = mapOf(
-                        "Display" to "14.6\" Dynamic",
-                        "Stylus" to "Included",
+                        "Processor" to "Snapdragon 8 Gen 2",
                         "Storage" to "256GB",
-                        "Connectivity" to "WiFi"
+                        "Display" to "11\" AMOLED"
                     ),
-                    condition = "Very Good",
-                    conditionDetails = "Includes S Pen and Book Cover Keyboard. Perfect for work & creativity."
+                    condition = "New",
+                    conditionDetails = "Premium Android tablet with S Pen included."
                 ),
-                TabletProduct(
+                ProductDetails(
                     name = "Microsoft Surface Pro 9",
                     imageRes = R.drawable.ic_surfacetablet,
                     currentBid = 58000,
-                    seller = TabletSeller(
+                    seller = SellerDetails(
                         name = "Microsoft Store",
                         verified = true,
                         rating = 4.6
                     ),
-                    endTime = 30,
+                    endTime = 4800,
                     registeredBidders = 16,
                     specs = mapOf(
                         "Processor" to "Intel Core i7",
@@ -848,8 +553,9 @@ fun AppNavHost() {
             )
             Tabletsscreen(
                 product = tablets.getOrElse(index) { tablets[0] },
-                onBack = { navController.popBackStack() },
-                onPlaceBid = { /* Handle bid */ }
+                navController = navController,
+                index = index,
+                onBack = { navController.popBackStack() }
             )
         }
 
@@ -881,6 +587,220 @@ fun AppNavHost() {
 
         composable("search") {
             Search(onBack = { navController.popBackStack() })
+        }
+
+        /* ---------- CREDITS PAYMENT FLOW ---------- */
+        
+        composable("credits/{type}/{index}/{itemName}") { backStackEntry ->
+            val type = backStackEntry.arguments?.getString("type") ?: "laptop"
+            val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
+            val itemName = backStackEntry.arguments?.getString("itemName") ?: ""
+            val requiredCredits = 10
+            val creditPrice = 10
+            val totalCost = requiredCredits * creditPrice
+            
+            CreditsScreen(
+                itemName = itemName,
+                requiredCredits = requiredCredits,
+                creditPrice = creditPrice,
+                onBack = { navController.popBackStack() },
+                onPay = {
+                    navController.navigate("payment_method/$totalCost/$itemName/$type/$index")
+                }
+            )
+        }
+        
+        composable("payment_method/{amount}/{itemName}/{type}/{index}") { backStackEntry ->
+            val amount = backStackEntry.arguments?.getString("amount")?.toIntOrNull() ?: 100
+            val itemName = backStackEntry.arguments?.getString("itemName") ?: ""
+            val type = backStackEntry.arguments?.getString("type") ?: "laptop"
+            val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
+            
+            PaymentMethodScreen(
+                amount = amount,
+                onBack = { navController.popBackStack() },
+                onPay = { method ->
+                    navController.navigate("upi_entry/$method/$amount/$itemName/$type/$index")
+                }
+            )
+        }
+        
+        composable("upi_entry/{method}/{amount}/{itemName}/{type}/{index}") { backStackEntry ->
+            val method = backStackEntry.arguments?.getString("method") ?: "phonepe"
+            val amount = backStackEntry.arguments?.getString("amount")?.toIntOrNull() ?: 100
+            val itemName = backStackEntry.arguments?.getString("itemName") ?: ""
+            val type = backStackEntry.arguments?.getString("type") ?: "laptop"
+            val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
+            
+            UPIEntryScreen(
+                paymentMethod = method,
+                amount = amount,
+                onBack = { navController.popBackStack() },
+                onProceed = { upiId ->
+                    navController.navigate("payment_processing/$method/$itemName/$type/$index")
+                }
+            )
+        }
+        
+        composable("payment_processing/{method}/{itemName}/{type}/{index}") { backStackEntry ->
+            val method = backStackEntry.arguments?.getString("method") ?: "phonepe"
+            val itemName = backStackEntry.arguments?.getString("itemName") ?: ""
+            val type = backStackEntry.arguments?.getString("type") ?: "laptop"
+            val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
+            
+            PaymentProcessingScreen(
+                method = method,
+                onFinished = {
+                    // Mark credits as paid
+                    val itemId = when (type) {
+                        "laptop" -> "laptop_$index"
+                        "monitor" -> "monitor_$index"
+                        "computer" -> "computer_$index"
+                        else -> "${type}_$index"
+                    }
+                    CreditsState.setCreditsPaid(itemId)
+                    navController.navigate("payment_success/$itemName/$type/$index") {
+                        // Pop back to the list screen, removing all payment flow screens
+                        when (type) {
+                            "laptop" -> popUpTo(route = "laptop_list") { inclusive = false }
+                            "monitor" -> popUpTo(route = "monitor_list") { inclusive = false }
+                            "computer" -> popUpTo(route = "computer_list") { inclusive = false }
+                            "mobile" -> popUpTo(route = "mobile_list") { inclusive = false }
+                            "tablet" -> popUpTo(route = "tablet_list") { inclusive = false }
+                            else -> popUpTo(route = "dashboard") { inclusive = false }
+                        }
+                    }
+                }
+            )
+        }
+        
+        composable("payment_success/{itemName}/{type}/{index}") { backStackEntry ->
+            val itemName = backStackEntry.arguments?.getString("itemName") ?: ""
+            val type = backStackEntry.arguments?.getString("type") ?: "laptop"
+            val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
+            
+            PaymentSuccessScreen(
+                itemName = itemName,
+                onStartBid = {
+                    when (type) {
+                        "laptop" -> navController.navigate("auction_detail/$index") {
+                            popUpTo(route = "laptop_list") { inclusive = false }
+                        }
+                        "monitor" -> navController.navigate("monitor_auction_detail/$index") {
+                            popUpTo(route = "monitor_list") { inclusive = false }
+                        }
+                        "computer" -> navController.navigate("computer_auction_detail/$index") {
+                            popUpTo(route = "computer_list") { inclusive = false }
+                        }
+                        "mobile" -> navController.navigate("mobile_auction_detail/$index") {
+                            popUpTo(route = "mobile_list") { inclusive = false }
+                        }
+                        "tablet" -> navController.navigate("tablet_auction_detail/$index") {
+                            popUpTo(route = "tablet_list") { inclusive = false }
+                        }
+                        else -> navController.popBackStack()
+                    }
+                }
+            )
+        }
+
+        /* ---------- BID COMMENTS ---------- */
+        
+        composable("bid_comments/{index}") { backStackEntry ->
+            val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
+            val laptops = listOf(
+                "MacBook Pro 16\" M3 Max",
+                "Dell XPS 15 OLED",
+                "ASUS ROG Zephyrus G16"
+            )
+            BidCommentsScreen(
+                itemName = laptops.getOrElse(index) { laptops[0] },
+                laptopIndex = index,
+                onBack = { navController.popBackStack() },
+                onAddBid = { /* Handle add bid */ },
+                onTimeUp = { winnerName, winnerBid ->
+                    navController.navigate("auction_winner/${laptops.getOrElse(index) { laptops[0] }}/${java.net.URLEncoder.encode(winnerName, "UTF-8")}/$winnerBid")
+                }
+            )
+        }
+        
+        composable("bid_comments/{type}/{index}") { backStackEntry ->
+            val type = backStackEntry.arguments?.getString("type") ?: "laptop"
+            val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
+            val itemNames = when (type) {
+                "mobile" -> listOf("iPhone 15 Pro Max", "Samsung Galaxy S24 Ultra", "OnePlus 12 Pro")
+                "tablet" -> listOf("iPad Pro 12.9\" M2", "Samsung Galaxy Tab S9", "Microsoft Surface Pro 9")
+                "computer" -> listOf("Custom Gaming PC RTX", "Mac Studio M2 Ultra", "HP Z8 G5 Workstation")
+                "monitor" -> listOf("LG UltraGear 27\"", "Samsung Odyssey G7", "Dell UltraSharp")
+                else -> listOf("MacBook Pro 16\" M3 Max", "Dell XPS 15 OLED", "ASUS ROG Zephyrus G16")
+            }
+            BidCommentsScreen(
+                itemName = itemNames.getOrElse(index) { itemNames[0] },
+                laptopIndex = index,
+                deviceType = type,
+                onBack = { navController.popBackStack() },
+                onAddBid = { /* Handle add bid */ },
+                onTimeUp = { winnerName, winnerBid ->
+                    navController.navigate("auction_winner/${itemNames.getOrElse(index) { itemNames[0] }}/${java.net.URLEncoder.encode(winnerName, "UTF-8")}/$winnerBid")
+                }
+            )
+        }
+        
+        /* ---------- AUCTION WINNER ---------- */
+        
+        composable("auction_winner/{itemName}/{winnerName}/{winningBid}") { backStackEntry ->
+            val itemName = backStackEntry.arguments?.getString("itemName") ?: ""
+            val winnerName = java.net.URLDecoder.decode(backStackEntry.arguments?.getString("winnerName") ?: "", "UTF-8")
+            val winningBid = backStackEntry.arguments?.getString("winningBid") ?: "₹0"
+            
+            AuctionWinnerScreen(
+                itemName = itemName,
+                winnerName = winnerName,
+                winningBid = winningBid,
+                onProceedToPayment = {
+                    navController.navigate("last_payment")
+                }
+            )
+        }
+        
+        /* ---------- LAST PAYMENT (PAYMENT METHOD) ---------- */
+        
+        composable("last_payment") {
+            LastPaymentScreen(
+                onBack = { navController.popBackStack() },
+                onPaymentMethodSelected = { method ->
+                    navController.navigate("upi_entry_payment/$method")
+                }
+            )
+        }
+        
+        /* ---------- UPI ENTRY FOR PAYMENT ---------- */
+        
+        composable("upi_entry_payment/{method}") { backStackEntry ->
+            val method = backStackEntry.arguments?.getString("method") ?: "phonepe"
+            
+            UPIEntryScreen(
+                paymentMethod = method,
+                amount = 0,
+                onBack = { navController.popBackStack() },
+                onProceed = { upiId ->
+                    navController.navigate("payment_success_logout") {
+                        popUpTo(route = "last_payment") { inclusive = false }
+                    }
+                }
+            )
+        }
+        
+        /* ---------- PAYMENT SUCCESS LOGOUT ---------- */
+        
+        composable("payment_success_logout") {
+            LogoutScreen(
+                onLogout = {
+                    navController.navigate("login") {
+                        popUpTo(route = "splash") { inclusive = true }
+                    }
+                }
+            )
         }
     }
 }

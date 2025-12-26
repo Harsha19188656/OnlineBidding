@@ -1,4 +1,4 @@
-package com.example.onlinebidding.screens.profile
+package com.example.onlinebidding.screens.login.dashboard
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border

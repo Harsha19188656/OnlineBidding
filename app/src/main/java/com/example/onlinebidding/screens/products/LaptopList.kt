@@ -1,6 +1,7 @@
 package com.example.onlinebidding.products
 
 import androidx.compose.foundation.*
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -122,8 +123,8 @@ fun LaptopList(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
-            items(laptops) { laptop ->
-                LaptopCard(laptop)
+            items(laptops.size) { index ->
+                LaptopCard(laptop = laptops[index], navController = navController, index = index)
             }
         }
     }
@@ -132,7 +133,11 @@ fun LaptopList(
 /* ---------------- CARD ---------------- */
 
 @Composable
-private fun LaptopCard(laptop: Laptop) {
+private fun LaptopCard(
+    laptop: Laptop,
+    navController: NavHostController,
+    index: Int
+) {
 
     Column(
         modifier = Modifier
@@ -168,7 +173,10 @@ private fun LaptopCard(laptop: Laptop) {
                     Text(
                         "View",
                         color = Color(0xFFFFC107),
-                        fontSize = 12.sp
+                        fontSize = 12.sp,
+                        modifier = Modifier.clickable {
+                            navController.navigate("laptop_details/$index")
+                        }
                     )
                 }
 
@@ -197,13 +205,22 @@ private fun LaptopCard(laptop: Laptop) {
 
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Button(
-                onClick = {},
+                onClick = {
+                    navController.navigate("credits/laptop/$index/${laptop.name}")
+                },
                 modifier = Modifier.weight(1f),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00C853))
             ) { Text("Credits", color = Color.Black) }
 
             Button(
-                onClick = {},
+                onClick = {
+                    val itemId = "laptop_$index"
+                    if (com.example.onlinebidding.screens.products.CreditsState.hasCreditsForItem(itemId)) {
+                        navController.navigate("auction_detail/$index")
+                    } else {
+                        navController.navigate("credits/laptop/$index/${laptop.name}")
+                    }
+                },
                 modifier = Modifier.weight(1f),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF9800))
             ) { Text("Bid", color = Color.Black) }

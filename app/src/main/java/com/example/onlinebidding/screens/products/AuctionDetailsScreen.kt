@@ -3,22 +3,22 @@ package com.example.onlinebidding.screens.products
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -30,9 +30,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.onlinebidding.R
-import androidx.compose.material3.rememberModalBottomSheetState
-import kotlinx.coroutines.delay
-import androidx.compose.material3.ExperimentalMaterial3Api
 
 /* ---------------- DATA MODEL ---------------- */
 
@@ -107,7 +104,7 @@ private val laptopAuctions = listOf(
         storage = "1TB NVMe SSD",
         display = "15.6\" 4K",
         ram = "32GB DDR5",
-        timeRemaining = "0:30",
+        timeRemaining = "0:25",
         currentBid = "₹95,000",
         maxPrice = "₹1,40,000",
         activeBidders = 19,
@@ -133,7 +130,7 @@ private val laptopAuctions = listOf(
         storage = "2TB SSD",
         display = "16\" QHD",
         ram = "32GB DDR5",
-        timeRemaining = "0:30",
+        timeRemaining = "0:28",
         currentBid = "₹1,42,000",
         maxPrice = "₹1,90,000",
         activeBidders = 15,
@@ -149,174 +146,16 @@ private val laptopAuctions = listOf(
 
 /* ---------------- SCREEN ---------------- */
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AuctionDetailsScreen(
     laptopIndex: Int = 0,
     onBack: () -> Unit = {},
     onPlaceBid: () -> Unit = {}
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val showFullSpecs = remember { mutableStateOf(false) }
-    val showBidHistory = remember { mutableStateOf(false) }
-    val bidList = remember { mutableStateListOf<BidInfo>() }
     val laptop = laptopAuctions.getOrElse(laptopIndex) { laptopAuctions[0] }
-    if (bidList.isEmpty()) {
-        bidList.addAll(laptop.latestBids)
-    }
-    var timeLeft by remember { mutableStateOf(30) }
-    LaunchedEffect(showBidHistory.value) {
-        if (showBidHistory.value) {
-            timeLeft = 30
-            while (showBidHistory.value && timeLeft > 0) {
-                delay(1000)
-                timeLeft--
-            }
-        }
-    }
     val background = Brush.verticalGradient(
         colors = listOf(Color(0xFF0D0D0D), Color.Black)
     )
-
-    if (showFullSpecs.value) {
-        ModalBottomSheet(
-            onDismissRequest = { showFullSpecs.value = false },
-            sheetState = sheetState,
-            containerColor = Color(0xFF0F0F0F)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Specifications", color = Color(0xFFFFC107), fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                    IconButton(onClick = { showFullSpecs.value = false }) {
-                        Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
-                    }
-                }
-                SpecRow("Processor", laptop.processor)
-                SpecRow("RAM", laptop.ram)
-                SpecRow("Storage", laptop.storage)
-                SpecRow("Display", laptop.display)
-                SpecRow("Quality", "${laptop.qualityPercent}%")
-                Spacer(modifier = Modifier.height(12.dp))
-            }
-        }
-    }
-
-    if (showBidHistory.value) {
-        ModalBottomSheet(
-            onDismissRequest = { showBidHistory.value = false },
-            sheetState = sheetState,
-            containerColor = Color(0xFF0F0F0F)
-        ) {
-            var newBid by remember { mutableStateOf("") }
-            var newName by remember { mutableStateOf("") }
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Bid Comments", color = Color(0xFFFFC107), fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                        Text("0:${timeLeft.toString().padStart(2, '0')}", color = Color.White, fontWeight = FontWeight.Bold)
-                    IconButton(onClick = { showBidHistory.value = false }) {
-                        Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
-                    }
-                }
-            bidList.forEach { bid ->
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = if (bid.isTopBid) Color(0x33279B00) else Color(0xFF121212)),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column {
-                                Text(bid.name, color = Color.White, fontWeight = FontWeight.Bold)
-                                Text("Bidding ${bid.amount}", color = Color(0xFFB0B0B0), fontSize = 12.sp)
-                            }
-                            if (bid.isTopBid) {
-                                Card(
-                                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFC107)),
-                                    shape = RoundedCornerShape(50)
-                                ) {
-                                    Text(
-                                        "Top Bid",
-                                        color = Color.Black,
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-                OutlinedTextField(
-                    value = newName,
-                    onValueChange = { text -> newName = text },
-                    label = { Text("Your name") },
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        focusedBorderColor = Color(0xFFFFC107),
-                        unfocusedBorderColor = Color(0xFF2C2C2C)
-                    )
-                )
-                OutlinedTextField(
-                    value = newBid,
-                    onValueChange = { text -> newBid = text.filter { ch -> ch.isDigit() } },
-                    label = { Text("Your bid amount (₹)") },
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        focusedBorderColor = Color(0xFFFFC107),
-                        unfocusedBorderColor = Color(0xFF2C2C2C)
-                    )
-                )
-                Button(
-                    onClick = {
-                        val amount = newBid.toIntOrNull()
-                        if (amount != null && newName.isNotBlank()) {
-                            val updated = (bidList + BidInfo(bidList.size + 1, newName, "₹$amount", false))
-                                .sortedByDescending { it.amount.filter { ch -> ch.isDigit() }.toIntOrNull() ?: 0 }
-                                .mapIndexed { idx, b ->
-                                    if (idx == 0) b.copy(isTopBid = true) else b.copy(isTopBid = false)
-                                }
-                            bidList.clear()
-                            bidList.addAll(updated)
-                            newBid = ""
-                            newName = ""
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF9800)),
-                    shape = RoundedCornerShape(24.dp)
-                ) {
-                    Text("Add Bid", color = Color.Black, fontWeight = FontWeight.Bold)
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-            }
-        }
-    }
 
     Box(
         modifier = Modifier
@@ -384,6 +223,21 @@ fun AuctionDetailsScreen(
                             .clip(RoundedCornerShape(20.dp)),
                         contentScale = ContentScale.Crop
                     )
+                    
+                    // Play button overlay
+                    Box(
+                        modifier = Modifier
+                            .size(64.dp)
+                            .background(Color.Black.copy(alpha = 0.5f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.PlayArrow,
+                            contentDescription = "Play",
+                            tint = Color(0xFFFFC107),
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
                 }
 
                 // Verified Seller Badge
@@ -497,12 +351,8 @@ fun AuctionDetailsScreen(
                     .padding(horizontal = 20.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Box(modifier = Modifier.weight(1f)) {
-                    SpecCard("Processor", laptop.processor, Color(0xFFFFC107), Icons.Default.Star)
-                }
-                Box(modifier = Modifier.weight(1f)) {
-                    SpecCard("Storage", laptop.storage, Color(0xFFFFC107), Icons.Default.Star)
-                }
+                SpecCard("Processor", laptop.processor, Color(0xFFFFC107), Icons.Default.Info)
+                SpecCard("Storage", laptop.storage, Color(0xFFFFC107), Icons.Default.Info)
             }
             Spacer(modifier = Modifier.height(12.dp))
             Row(
@@ -512,10 +362,10 @@ fun AuctionDetailsScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Box(modifier = Modifier.weight(1f)) {
-                    SpecCard("Display", laptop.display, Color(0xFF2196F3), Icons.Default.Star)
+                    SpecCard("Display", laptop.display, Color(0xFF2196F3), Icons.Default.Info)
                 }
                 Box(modifier = Modifier.weight(1f)) {
-                    SpecCard("RAM", laptop.ram, Color(0xFF4CAF50), Icons.Default.Star)
+                    SpecCard("RAM", laptop.ram, Color(0xFF4CAF50), Icons.Default.Info)
                 }
             }
 
@@ -561,10 +411,10 @@ fun AuctionDetailsScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Box(modifier = Modifier.weight(1f)) {
-                    BidInfoCard("Current Bid", laptop.currentBid, "Highest offer", true)
+                BidInfoCard("Current Bid", laptop.currentBid, "Highest offer", true)
                 }
                 Box(modifier = Modifier.weight(1f)) {
-                    BidInfoCard("Max Price", laptop.maxPrice, "Reserve limit", false)
+                BidInfoCard("Max Price", laptop.maxPrice, "Reserve limit", false)
                 }
             }
 
@@ -654,21 +504,10 @@ fun AuctionDetailsScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Box(modifier = Modifier.weight(1f)) {
-                    ActionCard(
-                        title = "Full Specs",
-                        icon = Icons.Default.Info,
-                        subtitle = "View details",
-                        onClick = { showFullSpecs.value = true }
-                    )
+                ActionCard("Full Specs", Icons.Default.Info, "View details")
                 }
                 Box(modifier = Modifier.weight(1f)) {
-                    ActionCard(
-                        title = "Bid History",
-                        icon = Icons.Default.List,
-                        subtitle = "Live updates",
-                        badge = laptop.totalBids.toString(),
-                        onClick = { showBidHistory.value = true }
-                    )
+                ActionCard("Bid History", Icons.Default.List, "Live updates", laptop.totalBids.toString())
                 }
             }
 
@@ -867,18 +706,10 @@ private fun BidInfoCard(title: String, amount: String, subtitle: String, isCurre
 }
 
 @Composable
-private fun ActionCard(
-    title: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    subtitle: String,
-    badge: String? = null,
-    onClick: () -> Unit = {}
-) {
+private fun ActionCard(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector, subtitle: String, badge: String? = null) {
     Box {
         Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { onClick() },
+            modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = Color(0xFF1A1A1A)),
             shape = RoundedCornerShape(16.dp)
         ) {
@@ -988,26 +819,6 @@ private fun LatestBidRow(bid: BidInfo) {
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
             )
-        }
-    }
-}
-
-@Composable
-private fun SpecRow(label: String, value: String) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF1A1A1A)),
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 10.dp, horizontal = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(label, color = Color(0xFF9E9E9E), fontSize = 13.sp)
-            Text(value, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
         }
     }
 }

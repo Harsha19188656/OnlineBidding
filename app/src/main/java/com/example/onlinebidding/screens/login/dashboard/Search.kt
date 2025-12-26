@@ -1,4 +1,4 @@
-package com.example.onlinebidding.screens.search
+package com.example.onlinebidding.screens.login.dashboard
 
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
