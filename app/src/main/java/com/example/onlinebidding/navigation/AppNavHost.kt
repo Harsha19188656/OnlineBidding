@@ -16,8 +16,8 @@ import com.example.onlinebidding.screens.trending.TrendingAuctions
 import com.example.onlinebidding.screens.flash.FlashAuctions
 import com.example.onlinebidding.screens.login.dashboard.Search
 import com.example.onlinebidding.screens.products.*
-import com.example.onlinebidding.products.LaptopList
-import com.example.onlinebidding.products.TabletListScreen
+import com.example.onlinebidding.screens.products.LaptopList
+import com.example.onlinebidding.screens.products.TabletListScreen
 import com.example.onlinebidding.screens.products.MobileProduct
 import com.example.onlinebidding.screens.products.Product as ProductDetails
 import com.example.onlinebidding.screens.products.Seller as SellerDetails
@@ -33,7 +33,17 @@ import com.example.onlinebidding.screens.products.ComputerAuctionDetailScreen
 import com.example.onlinebidding.screens.products.MonitorAuctionDetailScreen
 import com.example.onlinebidding.screens.products.TabletAuctionDetailScreen
 import com.example.onlinebidding.screens.products.AuctionWinnerScreen
+import com.example.onlinebidding.screens.admin.AdminDashboard
+import com.example.onlinebidding.screens.admin.AdminProductList
+import com.example.onlinebidding.screens.admin.AdminProductForm
+import com.example.onlinebidding.screens.admin.AdminLaptopList
+import com.example.onlinebidding.screens.admin.AdminMobileList
+import com.example.onlinebidding.screens.admin.AdminComputerList
+import com.example.onlinebidding.screens.admin.AdminMonitorList
+import com.example.onlinebidding.screens.admin.AdminTabletList
 import com.example.onlinebidding.ui.viewmodel.AuthViewModel
+import com.example.onlinebidding.utils.getProductPrice
+import com.example.onlinebidding.utils.calculateCredits
 import com.example.onlinebidding.R
 
 /* ---------------- ROUTES ---------------- */
@@ -48,14 +58,18 @@ fun AppNavHost() {
     val authViewModel: AuthViewModel = viewModel()
     val authState by authViewModel.uiState.collectAsState()
 
-    var userName by remember { mutableStateOf("User") }
-    var userEmail by remember { mutableStateOf("user@email.com") }
-
+    // Update user data when auth state changes
     LaunchedEffect(authState.token) {
         if (authState.token != null) {
-            userEmail = authState.email ?: userEmail
-            navController.navigate(route = "create_profile") {
-                popUpTo(route = "login") { inclusive = true }
+            // Route based on role
+            if (authState.role == "admin") {
+                navController.navigate(route = "admin_dashboard") {
+                    popUpTo(route = "login") { inclusive = true }
+                }
+            } else {
+                navController.navigate(route = "interest") {
+                    popUpTo(route = "login") { inclusive = true }
+                }
             }
         }
     }
@@ -99,7 +113,14 @@ fun AppNavHost() {
                     authViewModel.login(email, password)
                 },
                 onForgotPassword = { navController.navigate(route = "forgot") },
-                onSignUp = { navController.navigate(route = "create_account") },
+                onSignUp = { loginType ->
+                    // Navigate to appropriate registration based on login type
+                    if (loginType == "Admin") {
+                        navController.navigate(route = "create_admin_account")
+                    } else {
+                        navController.navigate(route = "create_account")
+                    }
+                },
                 onGoogleSignUp = {},
                 isLoading = authState.loading,
                 errorMessage = authState.error ?: ""
@@ -108,9 +129,30 @@ fun AppNavHost() {
 
         composable("create_account") {
             CreateAccount(
+                isAdmin = false,
                 onAccountCreated = {
-                    navController.navigate(route = "welcome") {
-                        popUpTo(route = "login") { inclusive = true }
+                    navController.navigate(route = "login") {
+                        popUpTo(route = "create_account") { inclusive = true }
+                    }
+                },
+                onBack = { navController.popBackStack() }
+            )
+        }
+        
+        composable("create_admin_account") {
+            CreateAccount(
+                isAdmin = true,
+                onAccountCreated = {
+                    // If already logged in as admin (creating from admin dashboard), go back to admin dashboard
+                    // Otherwise, go to login
+                    if (authState.token != null && authState.role == "admin") {
+                        navController.navigate(route = "admin_dashboard") {
+                            popUpTo(route = "create_admin_account") { inclusive = true }
+                        }
+                    } else {
+                        navController.navigate(route = "login") {
+                            popUpTo(route = "create_admin_account") { inclusive = true }
+                        }
                     }
                 },
                 onBack = { navController.popBackStack() }
@@ -139,18 +181,133 @@ fun AppNavHost() {
             }
         }
 
-        composable("create_profile") {
-            CreateProfile { name, email, _ ->
-                userName = name
-                userEmail = email
-                navController.navigate(route = "welcome")
-            }
-        }
+        // create_profile and welcome screens are skipped - users go directly to interest after login
+        // composable("create_profile") { ... }
+        // composable("welcome") { ... }
 
-        composable("welcome") {
-            Welcome(
-                email = userEmail,
-                onContinue = { navController.navigate(route = "interest") }
+        /* ---------- ADMIN DASHBOARD ---------- */
+        composable("admin_dashboard") {
+            AdminDashboard(
+                onNavigateToCategory = { route ->
+                    navController.navigate(route)
+                },
+                onCreateAdmin = {
+                    navController.navigate("create_admin_account")
+                },
+                onLogout = {
+                    authViewModel.logout()
+                    navController.navigate("login") {
+                        popUpTo("login") { inclusive = true }
+                    }
+                }
+            )
+        }
+        
+        /* ---------- ADMIN PRODUCT LISTS ---------- */
+        composable("admin_laptop_list") {
+            AdminLaptopList(
+                navController = navController,
+                onBack = { navController.popBackStack() },
+                userToken = authState.token
+            )
+        }
+        
+        composable("admin_mobile_list") {
+            AdminMobileList(
+                navController = navController,
+                onBack = { navController.popBackStack() },
+                userToken = authState.token
+            )
+        }
+        
+        composable("admin_computer_list") {
+            AdminComputerList(
+                navController = navController,
+                onBack = { navController.popBackStack() },
+                userToken = authState.token
+            )
+        }
+        
+        composable("admin_monitor_list") {
+            AdminMonitorList(
+                navController = navController,
+                onBack = { navController.popBackStack() },
+                userToken = authState.token
+            )
+        }
+        
+        composable("admin_tablet_list") {
+            AdminTabletList(
+                navController = navController,
+                onBack = { navController.popBackStack() },
+                userToken = authState.token
+            )
+        }
+        
+        composable("admin_products") {
+            AdminProductList(
+                token = authState.token ?: "",
+                onBack = { navController.popBackStack() },
+                onEditProduct = { productId ->
+                    navController.navigate("admin_product_form/$productId")
+                },
+                onAddProduct = {
+                    navController.navigate("admin_product_form")
+                }
+            )
+        }
+        
+        composable("admin_product_form") {
+            AdminProductForm(
+                token = authState.token ?: "",
+                productId = null,
+                initialProduct = null,
+                onBack = { navController.popBackStack() },
+                onSave = {
+                    navController.popBackStack()
+                }
+            )
+        }
+        
+        composable("admin_product_form/{category}") { backStackEntry ->
+            val category = backStackEntry.arguments?.getString("category") ?: "laptop"
+            val initialProduct = com.example.onlinebidding.api.AdminProductItem(
+                id = 0,
+                title = "",
+                description = null,
+                category = category,
+                image_url = null,
+                specs = null,
+                condition_label = null,
+                base_price = 0.0,
+                auction_id = null,
+                start_price = null,
+                current_price = null,
+                auction_status = null,
+                created_at = null
+            )
+            
+            AdminProductForm(
+                token = authState.token ?: "",
+                productId = null,
+                initialProduct = initialProduct,
+                onBack = { navController.popBackStack() },
+                onSave = {
+                    navController.popBackStack()
+                }
+            )
+        }
+        
+        composable("admin_product_form/{productId}") { backStackEntry ->
+            val productId = backStackEntry.arguments?.getString("productId")?.toIntOrNull()
+            AdminProductForm(
+                token = authState.token ?: "",
+                productId = productId,
+                initialProduct = null,
+                onBack = { navController.popBackStack() },
+                onSave = {
+                    navController.popBackStack()
+                }
             )
         }
 
@@ -170,7 +327,7 @@ fun AppNavHost() {
 
         composable("dashboard") {
             MainDashboard(
-                userName = userName,
+                userName = authState.name ?: "User",
                 onNavigate = { route ->
                     navController.navigate(route = route)
                 }
@@ -564,9 +721,9 @@ fun AppNavHost() {
         composable("profile") {
             ProfileScreen(
                 userData = UserData(
-                    name = userName,
-                    email = userEmail,
-                    phone = "9999999999",
+                    name = authState.name ?: "User",
+                    email = authState.email ?: "user@email.com",
+                    phone = authState.phone,
                     totalBids = 18,
                     wins = 3,
                     credits = 120
@@ -595,7 +752,10 @@ fun AppNavHost() {
             val type = backStackEntry.arguments?.getString("type") ?: "laptop"
             val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
             val itemName = backStackEntry.arguments?.getString("itemName") ?: ""
-            val requiredCredits = 10
+            
+            // Get product price and calculate credits dynamically
+            val productPrice = getProductPrice(type, index)
+            val requiredCredits = calculateCredits(productPrice)
             val creditPrice = 10
             val totalCost = requiredCredits * creditPrice
             
@@ -796,7 +956,7 @@ fun AppNavHost() {
         composable("payment_success_logout") {
             LogoutScreen(
                 onLogout = {
-                    navController.navigate("login") {
+                    navController.navigate("splash") {
                         popUpTo(route = "splash") { inclusive = true }
                     }
                 }

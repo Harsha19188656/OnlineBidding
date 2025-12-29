@@ -23,7 +23,7 @@ import androidx.compose.ui.unit.sp
 fun LoginPage(
     onLogin: (String, String) -> Unit,
     onForgotPassword: () -> Unit,
-    onSignUp: () -> Unit,
+    onSignUp: (String) -> Unit, // Pass loginType: "User" or "Admin"
     onGoogleSignUp: () -> Unit,
     isLoading: Boolean,
     errorMessage: String?
@@ -31,6 +31,7 @@ fun LoginPage(
     val context = LocalContext.current
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var loginType by remember { mutableStateOf("User") } // "User" or "Admin"
 
     Box(
         modifier = Modifier
@@ -65,6 +66,64 @@ fun LoginPage(
             )
 
             Spacer(modifier = Modifier.height(40.dp))
+            
+            /* -------- LOGIN TYPE SELECTION -------- */
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // User Button
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
+                        .background(
+                            if (loginType == "User") 
+                                Color(0xFFFFB300) 
+                            else 
+                                Color(0xFF1A1A1A),
+                            RoundedCornerShape(12.dp)
+                        )
+                        .clickable { loginType = "User" },
+                    contentAlignment = Alignment.Center
+                ) {
+                    BasicText(
+                        text = "User",
+                        style = TextStyle(
+                            color = if (loginType == "User") Color.Black else Color(0xFFFFB300),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    )
+                }
+                
+                // Admin Button
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
+                        .background(
+                            if (loginType == "Admin") 
+                                Color(0xFFFFB300) 
+                            else 
+                                Color(0xFF1A1A1A),
+                            RoundedCornerShape(12.dp)
+                        )
+                        .clickable { loginType = "Admin" },
+                    contentAlignment = Alignment.Center
+                ) {
+                    BasicText(
+                        text = "Admin",
+                        style = TextStyle(
+                            color = if (loginType == "Admin") Color.Black else Color(0xFFFFB300),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(30.dp))
 
             /* -------- EMAIL -------- */
             InputField(
@@ -166,7 +225,7 @@ fun LoginPage(
                 )
                 BasicText(
                     text = "Sign Up",
-                    modifier = Modifier.clickable { onSignUp() },
+                    modifier = Modifier.clickable { onSignUp(loginType) },
                     style = TextStyle(
                         color = Color(0xFFFFB300),
                         fontSize = 13.sp,

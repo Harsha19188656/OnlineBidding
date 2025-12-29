@@ -10,7 +10,8 @@ object ServiceLocator {
     private val tokenStore = TokenStore()
     
     // Base URL - TODO: Move to BuildConfig or gradle.properties for different environments
-    private const val BASE_URL = "http://192.168.137.128/online_auction/"
+    // Updated to match current WiFi IP address
+    private const val BASE_URL = "http://172.20.10.2/onlinebidding/"
     
     private val apiService: ApiService by lazy {
         RetrofitClient.create(BASE_URL, tokenStore)
@@ -24,4 +25,3 @@ object ServiceLocator {
     val tokenStoreInstance: TokenStore
         get() = tokenStore
 }
-
