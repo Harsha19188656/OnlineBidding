@@ -14,7 +14,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -80,16 +79,18 @@ private val fallbackMobiles = listOf(
 
 // Extension function to map API response to Mobile
 private fun com.example.onlinebidding.api.AuctionListItem.toMobile(): Mobile {
+    // Use direct fields if available, otherwise use product data
     val name = this.name ?: this.product.title
     val specs = this.specs ?: this.product.specs ?: this.product.condition ?: "Premium Device"
     val rating = this.rating ?: 4.5
     val price = this.price ?: "₹${String.format("%.0f", this.auction.current_price)}"
     
+    // For image, we'll use a default drawable based on product name
     val imageRes = when {
         name.contains("iPhone", ignoreCase = true) -> R.drawable.ic_appleiphone15pro
         name.contains("Samsung", ignoreCase = true) -> R.drawable.ic_samsunggalaxys24ultra
         name.contains("OnePlus", ignoreCase = true) -> R.drawable.ic_oneplus12pro
-        else -> R.drawable.ic_appleiphone15pro
+        else -> R.drawable.ic_appleiphone15pro // Default
     }
     
     return Mobile(
@@ -118,7 +119,8 @@ fun AdminMobileList(
     var isBackendConnected by remember { mutableStateOf(false) }
     var backendDataCount by remember { mutableStateOf(0) }
 
-    fun loadMobiles() {
+    // Fetch mobiles from backend
+    LaunchedEffect(Unit) {
         isLoading = true
         scope.launch {
             try {
@@ -150,11 +152,6 @@ fun AdminMobileList(
                 isLoading = false
             }
         }
-    }
-
-    // Fetch mobiles from backend
-    LaunchedEffect(Unit) {
-        loadMobiles()
     }
 
     Column(
@@ -199,6 +196,7 @@ fun AdminMobileList(
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Column(horizontalAlignment = Alignment.End) {
                     Text(mobiles.size.toString(), color = Color(0xFFFFC107))
+                    // Backend connection indicator
                     if (!isLoading) {
                         Text(
                             text = if (isBackendConnected) "✅ Online" else "⚠️ Offline",
@@ -239,23 +237,11 @@ fun AdminMobileList(
                 border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF4CAF50))
             ) {
                 Text(
-                    text = "✅ Connected to backend - ${backendDataCount} mobiles loaded",
+                    text = "✅ Connected to backend - $backendDataCount mobiles loaded",
                     color = Color(0xFF4CAF50),
                     fontSize = 12.sp,
                     modifier = Modifier.padding(12.dp)
                 )
-            }
-        }
-        
-        // Show loading indicator
-        if (isLoading) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(color = Color(0xFFFFC107))
             }
         }
 
@@ -279,38 +265,38 @@ fun AdminMobileList(
         /* ---------- LIST ---------- */
 
         if (!isLoading && mobiles.isNotEmpty()) {
-            LazyColumn(
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(18.dp)
-            ) {
-                items(mobiles.size) { index ->
-                    AdminMobileCard(
-                        mobile = mobiles[index],
-                        navController = navController,
-                        index = index,
-                        userToken = userToken,
-                        onDelete = { mobileIndex, productId ->
-                            // If productId exists, reload from backend; otherwise remove from local list
-                            if (productId != null) {
-                                // Reload list after backend deletion
-                                scope.launch {
-                                    try {
-                                        val response = RetrofitInstance.api.listAuctions(category = "mobile")
-                                        if (response.isSuccessful && response.body()?.success == true) {
-                                            val items = response.body()?.items ?: emptyList()
-                                            mobiles = items.map { it.toMobile() }
-                                            backendDataCount = items.size
-                                        }
-                                    } catch (e: Exception) {
-                                        // Error reloading, ignore
+        LazyColumn(
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp)
+        ) {
+            items(mobiles.size) { index ->
+                AdminMobileCard(
+                    mobile = mobiles[index],
+                    navController = navController,
+                    index = index,
+                    userToken = userToken,
+                    onDelete = { mobileIndex, productId ->
+                        // If productId exists, reload from backend; otherwise remove from local list
+                        if (productId != null) {
+                            // Reload list after backend deletion
+                            scope.launch {
+                                try {
+                                    val response = RetrofitInstance.api.listAuctions(category = "mobile")
+                                    if (response.isSuccessful && response.body()?.success == true) {
+                                        val items = response.body()?.items ?: emptyList()
+                                        mobiles = items.map { it.toMobile() }
+                                        backendDataCount = items.size
                                     }
+                                } catch (e: Exception) {
+                                    // Error reloading, ignore
                                 }
-                            } else {
-                                // Remove from local list for fallback data
-                                mobiles = mobiles.filterIndexed { i, _ -> i != mobileIndex }
                             }
+                        } else {
+                            // Remove from local list for fallback data
+                            mobiles = mobiles.filterIndexed { i, _ -> i != mobileIndex }
                         }
-                    )
+                    }
+                )
                 }
             }
         } else if (!isLoading && mobiles.isEmpty()) {
@@ -375,7 +361,7 @@ private fun AdminMobileCard(
                         modifier = Modifier.weight(1f)
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        // Admin Delete button
+                        // Admin Delete button - show for all mobiles
                         if (userToken != null) {
                             IconButton(onClick = {
                                 if (mobile.productId != null) {
@@ -394,8 +380,8 @@ private fun AdminMobileCard(
                                                 android.util.Log.d("AdminMobileList", "📦 Delete response body: $body")
                                                 
                                                 if (body?.success == true) {
-                                                    android.util.Log.d("AdminMobileList", "✅ Delete successful - Product removed from database")
-                                                    Toast.makeText(context, "Mobile deleted successfully from database", Toast.LENGTH_SHORT).show()
+                                                    android.util.Log.d("AdminMobileList", "✅ Delete successful")
+                                                    Toast.makeText(context, "Mobile deleted successfully", Toast.LENGTH_SHORT).show()
                                                     onDelete(index, mobile.productId)
                                                 } else {
                                                     val errorMsg = body?.error ?: "Delete failed: ${response.code()}"
@@ -448,18 +434,27 @@ private fun AdminMobileCard(
                 Text(
                     mobile.specs,
                     color = Color(0xFFB0B0B0),
-                    fontSize = 12.sp,
-                    maxLines = 2
+                    fontSize = 11.sp
                 )
 
                 Spacer(Modifier.height(6.dp))
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Star, null, tint = Color(0xFFFFC107), modifier = Modifier.size(12.dp))
+                    Icon(Icons.Default.Star, null, tint = Color(0xFFFFC107), modifier = Modifier.size(14.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text(mobile.rating.toString(), color = Color(0xFFFFC107), fontSize = 12.sp)
-                    Spacer(Modifier.width(10.dp))
-                    Text(mobile.price, color = Color(0xFFFFC107), fontWeight = FontWeight.Bold)
+                    Text(
+                        mobile.rating.toString(),
+                        color = Color(0xFFFFC107),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        mobile.price,
+                        color = Color(0xFFFFC107),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
                 }
             }
         }
@@ -473,8 +468,8 @@ private fun AdminMobileCard(
                 },
                 modifier = Modifier.weight(1f),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00C853))
-            ) { 
-                Text("Credits", color = Color.Black) 
+            ) {
+                Text("Credits", color = Color.Black)
             }
 
             Button(
@@ -483,7 +478,9 @@ private fun AdminMobileCard(
                 },
                 modifier = Modifier.weight(1f),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF9800))
-            ) { Text("Bid", color = Color.Black) }
+            ) {
+                Text("Bid", color = Color.Black)
+            }
         }
     }
 }

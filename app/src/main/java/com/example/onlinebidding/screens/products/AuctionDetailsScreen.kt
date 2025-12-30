@@ -3,7 +3,6 @@ package com.example.onlinebidding.screens.products
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -34,6 +33,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.foundation.clickable
+import androidx.navigation.NavHostController
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.example.onlinebidding.R
@@ -162,10 +163,9 @@ private val laptopAuctions = listOf(
 fun AuctionDetailsScreen(
     auctionId: Int? = null,
     laptopIndex: Int = 0, // Fallback for backward compatibility
-    deviceType: String = "laptop", // For specifications dialog
     onBack: () -> Unit = {},
     onPlaceBid: () -> Unit = {},
-    onBidHistoryClick: (() -> Unit)? = null // Callback for Bid History navigation
+    navController: NavHostController? = null
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -660,36 +660,31 @@ fun AuctionDetailsScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Box(modifier = Modifier.weight(1f)) {
-                    ActionCard(
-                        "Full Specs", 
-                        Icons.Default.Info, 
-                        "View details",
-                        onClick = { showSpecsDialog = true }
-                    )
+                ActionCard(
+                    "Full Specs", 
+                    Icons.Default.Info, 
+                    "View details",
+                    onClick = { showSpecsDialog = true }
+                )
                 }
                 Box(modifier = Modifier.weight(1f)) {
-                    ActionCard(
-                        "Bid History", 
-                        Icons.Default.List, 
-                        "Live updates", 
-                        badge = laptopData.totalBids.toString(),
-                        onClick = { 
-                            onBidHistoryClick?.invoke() ?: run {
-                                // Default navigation if callback not provided
-                                android.util.Log.d("AuctionDetails", "Bid History clicked")
-                            }
-                        }
-                    )
+                ActionCard(
+                    "Bid History", 
+                    Icons.Default.List, 
+                    "Live updates", 
+                    badge = laptopData.totalBids.toString(),
+                    onClick = {
+                        navController?.navigate("bid_comments/laptop/$laptopIndex")
+                    }
+                )
                 }
             }
             
-            Spacer(modifier = Modifier.height(20.dp))
-            
             // Specifications Dialog
-            if (showSpecsDialog && laptopData != null) {
+            if (showSpecsDialog) {
                 SpecificationsDialog(
                     laptopIndex = laptopIndex,
-                    deviceType = deviceType,
+                    deviceType = "laptop",
                     deviceIndex = laptopIndex,
                     onDismiss = { showSpecsDialog = false }
                 )

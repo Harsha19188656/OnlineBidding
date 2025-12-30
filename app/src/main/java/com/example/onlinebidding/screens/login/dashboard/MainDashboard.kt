@@ -1,5 +1,6 @@
 package com.example.onlinebidding.screens.dashboard
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -17,9 +18,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.onlinebidding.R
 
 @Composable
 fun MainDashboard(
@@ -29,11 +33,11 @@ fun MainDashboard(
     val scroll = rememberScrollState()
 
     val categories = listOf(
-        DashboardCategory("Laptops", Icons.Default.Home, 24, "laptop_list"),
-        DashboardCategory("Mobiles", Icons.Default.List, 36, "mobile_list"),
-        DashboardCategory("Computers", Icons.Default.Star, 18, "computer_list"),
-        DashboardCategory("Monitors", Icons.Default.ShoppingCart, 15, "monitor_list"),
-        DashboardCategory("Tablets", Icons.Default.Favorite, 22, "tablet_list")
+        DashboardCategory("Laptops", R.drawable.ic_laptops, 24, "laptop_list"),
+        DashboardCategory("Mobiles", R.drawable.ic_mobiles, 36, "mobile_list"),
+        DashboardCategory("Computers", R.drawable.ic_computer, 18, "computer_list"),
+        DashboardCategory("Monitors", R.drawable.ic_monitors, 15, "monitor_list"),
+        DashboardCategory("Tablets", R.drawable.ic_tablets, 22, "tablet_list")
     )
 
     Surface(
@@ -69,12 +73,12 @@ fun MainDashboard(
 
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Icon(
-                        Icons.Default.Notifications,
+                        imageVector = Icons.Default.Notifications,
                         contentDescription = null,
                         tint = Color(0xFFFFC107)
                     )
                     Icon(
-                        Icons.Default.Person,
+                        imageVector = Icons.Default.Person,
                         contentDescription = "Profile",
                         tint = Color(0xFFFFC107),
                         modifier = Modifier.clickable {
@@ -97,7 +101,7 @@ fun MainDashboard(
                 contentAlignment = Alignment.CenterStart
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Search, null, tint = Color(0x99FFD700))
+                    Icon(imageVector = Icons.Default.Search, contentDescription = null, tint = Color(0x99FFD700))
                     Spacer(Modifier.width(12.dp))
                     Text("Search auctions...", color = Color(0x66FFD700))
                 }
@@ -153,7 +157,7 @@ fun MainDashboard(
 
 data class DashboardCategory(
     val name: String,
-    val icon: ImageVector,
+    val imageRes: Int,
     val count: Int,
     val destination: String
 )
@@ -180,7 +184,8 @@ private fun CategoryRow(
     ) {
         Box(
             modifier = Modifier
-                .size(56.dp)
+                .width(64.dp)
+                .height(48.dp)
                 .background(
                     Brush.linearGradient(
                         listOf(Color(0x55FFD700), Color(0x22FF9800))
@@ -189,7 +194,11 @@ private fun CategoryRow(
                 ),
             contentAlignment = Alignment.Center
         ) {
-            Icon(category.icon, null, tint = Color(0xFFFFD700))
+            Image(
+                painter = painterResource(category.imageRes),
+                contentDescription = null,
+                modifier = Modifier.size(32.dp)
+            )
         }
 
         Spacer(Modifier.width(16.dp))
@@ -203,7 +212,7 @@ private fun CategoryRow(
             )
         }
 
-        Icon(Icons.Default.ArrowForward, null, tint = Color(0x66FFD700))
+        Icon(imageVector = Icons.Default.ArrowForward, contentDescription = null, tint = Color(0x66FFD700))
     }
 }
 
@@ -226,7 +235,7 @@ private fun QuickActionCard(
             .clickable { onClick() }
             .padding(16.dp)
     ) {
-        Icon(icon, null, tint = Color(0xFFFFC107))
+        Icon(imageVector = icon, contentDescription = null, tint = Color(0xFFFFC107))
         Spacer(Modifier.height(8.dp))
         Text(title, color = Color(0xFFFFE082), fontSize = 16.sp)
         Text(subtitle, color = Color(0x99FFD700), fontSize = 12.sp)

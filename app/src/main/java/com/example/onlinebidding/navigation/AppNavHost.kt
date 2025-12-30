@@ -352,12 +352,9 @@ fun AppNavHost() {
             AuctionDetailsScreen(
                 auctionId = auctionId,
                 laptopIndex = index,
-                deviceType = "laptop",
                 onBack = { navController.popBackStack() },
                 onPlaceBid = { /* Handled in screen */ },
-                onBidHistoryClick = { 
-                    navController.navigate("bid_comments/laptop/$index")
-                }
+                navController = navController
             )
         }
         
@@ -367,12 +364,9 @@ fun AppNavHost() {
             AuctionDetailsScreen(
                 auctionId = auctionId,
                 laptopIndex = index,
-                deviceType = "laptop",
                 onBack = { navController.popBackStack() },
                 onPlaceBid = { /* Handled in screen */ },
-                onBidHistoryClick = { 
-                    navController.navigate("bid_comments/laptop/$index")
-                }
+                navController = navController
             )
         }
 
