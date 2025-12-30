@@ -1,6 +1,6 @@
 package com.example.onlinebidding.utils
 
-import com.example.onlinebidding.screens.products.computerList
+import com.example.onlinebidding.screens.products.fallbackComputers
 import com.example.onlinebidding.screens.products.monitorList
 
 /**
@@ -63,8 +63,8 @@ fun getProductPrice(type: String, index: Int): Double {
             } else 0.0
         }
         "computer" -> {
-            if (index < computerList.size) {
-                parsePrice(computerList[index].price)
+            if (index < fallbackComputers.size) {
+                parsePrice(fallbackComputers[index].price)
             } else 0.0
         }
         "monitor" -> {

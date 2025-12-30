@@ -9,6 +9,12 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -20,6 +26,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.example.onlinebidding.R
+import com.example.onlinebidding.api.RetrofitInstance
+import kotlinx.coroutines.launch
 
 /* ---------------- DATA ---------------- */
 data class ComputerItem(
@@ -30,7 +38,8 @@ data class ComputerItem(
     val image: Int
 )
 
-val computerList = listOf(
+// Hardcoded fallback data (used if API fails)
+val fallbackComputers = listOf(
     ComputerItem(
         "Custom Gaming PC RTX",
         "64GB DDR5 · 2TB Gen5 NVMe + 4TB HDD",
@@ -54,12 +63,73 @@ val computerList = listOf(
     )
 )
 
+// Extension function to map API response to ComputerItem
+private fun com.example.onlinebidding.api.AuctionListItem.toComputerItem(): ComputerItem {
+    val name = this.name ?: this.product.title
+    val description = this.specs ?: this.product.specs ?: this.product.condition ?: "Premium Device"
+    val rating = this.rating ?: 4.5
+    val price = this.price ?: "₹${String.format("%.0f", this.auction.current_price)}"
+    
+    val image = when {
+        name.contains("Gaming", ignoreCase = true) || name.contains("RTX", ignoreCase = true) -> R.drawable.ic_pcgamming
+        name.contains("Mac", ignoreCase = true) || name.contains("Studio", ignoreCase = true) -> R.drawable.ic_macstudio
+        name.contains("HP", ignoreCase = true) || name.contains("Workstation", ignoreCase = true) -> R.drawable.ic_hp_z5
+        else -> R.drawable.ic_pcgamming
+    }
+    
+    return ComputerItem(
+        name = name,
+        description = description,
+        rating = rating,
+        price = price,
+        image = image
+    )
+}
+
 /* ---------------- SCREEN ---------------- */
 @Composable
 fun ComputerList(
     navController: NavHostController,
     onBack: () -> Unit = {}
 ) {
+    val scope = rememberCoroutineScope()
+    var computers by remember { mutableStateOf<List<ComputerItem>>(fallbackComputers) }
+    var isLoading by remember { mutableStateOf(false) }
+
+    // Fetch computers from backend - refresh when screen is displayed
+    LaunchedEffect(navController.currentBackStackEntry?.id) {
+        isLoading = true
+        scope.launch {
+            try {
+                android.util.Log.d("ComputerList", "🔌 Attempting to connect to backend API...")
+                val response = RetrofitInstance.api.listAuctions(category = "computer")
+                android.util.Log.d("ComputerList", "📡 API Response Code: ${response.code()}")
+                
+                if (response.isSuccessful && response.body()?.success == true) {
+                    val items = response.body()?.items ?: emptyList()
+                    if (items.isNotEmpty()) {
+                        computers = items.map { it.toComputerItem() }
+                        android.util.Log.d("ComputerList", "✅ Backend Connected! Received ${items.size} computers from API")
+                    } else {
+                        // API connected but returned empty list - use fallback data
+                        computers = fallbackComputers
+                        android.util.Log.w("ComputerList", "⚠️ API connected but returned empty list - using fallback data")
+                    }
+                } else {
+                    // Use fallback data on API error
+                    computers = fallbackComputers
+                    android.util.Log.w("ComputerList", "⚠️ API Error: ${response.code()} - Using fallback data")
+                }
+            } catch (e: Exception) {
+                // Use fallback data on network error
+                android.util.Log.e("ComputerList", "❌ Network Error: ${e.message}", e)
+                computers = fallbackComputers
+            } finally {
+                isLoading = false
+            }
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -118,16 +188,27 @@ fun ComputerList(
         Spacer(modifier = Modifier.height(14.dp))
 
         /* ---------- LIST ---------- */
-        LazyColumn(
-            contentPadding = PaddingValues(18.dp),
-            verticalArrangement = Arrangement.spacedBy(18.dp)
-        ) {
-            items(computerList.size) { index ->
-                ComputerCard(
-                    item = computerList[index],
-                    navController = navController,
-                    index = index
-                )
+        if (isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(32.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = Color(0xFFFFC107))
+            }
+        } else {
+            LazyColumn(
+                contentPadding = PaddingValues(18.dp),
+                verticalArrangement = Arrangement.spacedBy(18.dp)
+            ) {
+                items(computers.size) { index ->
+                    ComputerCard(
+                        item = computers[index],
+                        navController = navController,
+                        index = index
+                    )
+                }
             }
         }
     }

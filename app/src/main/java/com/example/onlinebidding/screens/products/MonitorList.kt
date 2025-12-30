@@ -14,6 +14,12 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -27,6 +33,8 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.example.onlinebidding.R
 import com.example.onlinebidding.screens.products.CreditsState
+import com.example.onlinebidding.api.RetrofitInstance
+import kotlinx.coroutines.launch
 
 /* ---------------- DATA ---------------- */
 data class MonitorProduct(
@@ -37,11 +45,35 @@ data class MonitorProduct(
     val image: Int
 )
 
+// Hardcoded fallback data (used if API fails)
 val monitorList = listOf(
     MonitorProduct("Samsung Odyssey G9 49\"", "Premium Device", 4.8, "₹95,000", R.drawable.ic_monitor_samsung),
     MonitorProduct("LG UltraFine 5K 27\"", "Premium Device", 4.9, "₹68,000", R.drawable.ic_monitor_lg),
     MonitorProduct("Dell UltraSharp U3423WE", "Premium Device", 4.7, "₹52,000", R.drawable.ic_monitor_dell)
 )
+
+// Extension function to map API response to MonitorProduct
+private fun com.example.onlinebidding.api.AuctionListItem.toMonitorProduct(): MonitorProduct {
+    val name = this.name ?: this.product.title
+    val specs = this.specs ?: this.product.specs ?: this.product.condition ?: "Premium Device"
+    val rating = this.rating ?: 4.5
+    val price = this.price ?: "₹${String.format("%.0f", this.auction.current_price)}"
+    
+    val image = when {
+        name.contains("Samsung", ignoreCase = true) -> R.drawable.ic_monitor_samsung
+        name.contains("LG", ignoreCase = true) -> R.drawable.ic_monitor_lg
+        name.contains("Dell", ignoreCase = true) -> R.drawable.ic_monitor_dell
+        else -> R.drawable.ic_monitor_samsung
+    }
+    
+    return MonitorProduct(
+        name = name,
+        specs = specs,
+        rating = rating,
+        price = price,
+        image = image
+    )
+}
 
 /* ---------------- SCREEN ---------------- */
 @Composable
@@ -49,6 +81,44 @@ fun MonitorList(
     navController: NavHostController,
     onBack: () -> Unit = {}
 ) {
+    val scope = rememberCoroutineScope()
+    var monitors by remember { mutableStateOf<List<MonitorProduct>>(monitorList) }
+    var isLoading by remember { mutableStateOf(false) }
+
+    // Fetch monitors from backend - refresh when screen is displayed
+    LaunchedEffect(navController.currentBackStackEntry?.id) {
+        isLoading = true
+        scope.launch {
+            try {
+                android.util.Log.d("MonitorList", "🔌 Attempting to connect to backend API...")
+                val response = RetrofitInstance.api.listAuctions(category = "monitor")
+                android.util.Log.d("MonitorList", "📡 API Response Code: ${response.code()}")
+                
+                if (response.isSuccessful && response.body()?.success == true) {
+                    val items = response.body()?.items ?: emptyList()
+                    if (items.isNotEmpty()) {
+                        monitors = items.map { it.toMonitorProduct() }
+                        android.util.Log.d("MonitorList", "✅ Backend Connected! Received ${items.size} monitors from API")
+                    } else {
+                        // API connected but returned empty list - use fallback data
+                        monitors = monitorList
+                        android.util.Log.w("MonitorList", "⚠️ API connected but returned empty list - using fallback data")
+                    }
+                } else {
+                    // Use fallback data on API error
+                    monitors = monitorList
+                    android.util.Log.w("MonitorList", "⚠️ API Error: ${response.code()} - Using fallback data")
+                }
+            } catch (e: Exception) {
+                // Use fallback data on network error
+                android.util.Log.e("MonitorList", "❌ Network Error: ${e.message}", e)
+                monitors = monitorList
+            } finally {
+                isLoading = false
+            }
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -85,7 +155,7 @@ fun MonitorList(
             )
 
             Text(
-                text = monitorList.size.toString(),
+                text = monitors.size.toString(),
                 color = Color(0xFFFFC107),
                 fontWeight = FontWeight.Bold
             )
@@ -114,13 +184,24 @@ fun MonitorList(
         Spacer(modifier = Modifier.height(18.dp))
 
         /* ---------- LIST ---------- */
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(20.dp)) {
-            items(monitorList.size) { index ->
-                MonitorCard(
-                    monitor = monitorList[index],
-                    navController = navController,
-                    index = index
-                )
+        if (isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(32.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = Color(0xFFFFC107))
+            }
+        } else {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                items(monitors.size) { index ->
+                    MonitorCard(
+                        monitor = monitors[index],
+                        navController = navController,
+                        index = index
+                    )
+                }
             }
         }
     }

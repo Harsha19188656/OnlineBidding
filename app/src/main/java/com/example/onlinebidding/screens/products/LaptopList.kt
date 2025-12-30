@@ -46,7 +46,8 @@ data class Laptop(
     val rating: Double,
     val price: String,
     val imageRes: Int,
-    val productId: Int? = null // Store product ID for admin operations
+    val productId: Int? = null, // Store product ID for admin operations
+    val auctionId: Int? = null // Store auction ID for backend connectivity
 )
 
 // Hardcoded fallback data (used if API fails)
@@ -100,7 +101,8 @@ private fun com.example.onlinebidding.api.AuctionListItem.toLaptop(): Laptop {
         rating = rating,
         price = price,
         imageRes = imageRes,
-        productId = productId
+        productId = productId,
+        auctionId = this.auction.id // Include auction ID for bid placement
     )
 }
 
@@ -439,7 +441,13 @@ private fun LaptopCard(
                 onClick = {
                     val itemId = "laptop_$index"
                     if (com.example.onlinebidding.screens.products.CreditsState.hasCreditsForItem(itemId)) {
-                        navController.navigate("auction_detail/$index")
+                        // Pass auction_id if available, otherwise use index
+                        val auctionId = laptop.auctionId
+                        if (auctionId != null) {
+                            navController.navigate("auction_detail/$index/$auctionId")
+                        } else {
+                            navController.navigate("auction_detail/$index")
+                        }
                     } else {
                         navController.navigate("credits/laptop/$index/${laptop.name}")
                     }

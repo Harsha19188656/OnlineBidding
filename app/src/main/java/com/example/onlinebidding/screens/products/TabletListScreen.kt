@@ -11,6 +11,12 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -26,9 +32,11 @@ import com.example.onlinebidding.model.Product
 import com.example.onlinebidding.model.Seller
 import androidx.navigation.NavHostController
 import com.example.onlinebidding.screens.products.CreditsState
+import com.example.onlinebidding.api.RetrofitInstance
+import kotlinx.coroutines.launch
 
 /* ---------------- SAMPLE DATA ---------------- */
-private val tablets = listOf(
+private val fallbackTablets = listOf(
     Product(
         id = 1,
         name = "iPad Pro 12.9\" M2",
@@ -47,12 +55,83 @@ private val tablets = listOf(
     )
 )
 
+// Extension function to map API response to Product
+private fun com.example.onlinebidding.api.AuctionListItem.toTabletProduct(): Product {
+    val name = this.name ?: this.product.title
+    val specs = this.specs ?: this.product.specs ?: this.product.condition ?: "Premium Device"
+    val rating = this.rating ?: 4.5
+    val price = this.auction.current_price.toInt()
+    
+    val imageRes = when {
+        name.contains("iPad", ignoreCase = true) -> R.drawable.ic_ipadtablet
+        name.contains("Samsung", ignoreCase = true) -> R.drawable.ic_samsungtablet
+        name.contains("Surface", ignoreCase = true) -> R.drawable.ic_surfacetablet
+        else -> R.drawable.ic_ipadtablet
+    }
+    
+    val specsMap = specs.split(" · ").associate { part ->
+        val keyValue = part.split(":")
+        if (keyValue.size == 2) {
+            keyValue[0].trim() to keyValue[1].trim()
+        } else {
+            "Spec" to part.trim()
+        }
+    }
+    
+    return Product(
+        id = this.product.id,
+        name = name,
+        imageRes = imageRes,
+        currentBid = price,
+        seller = Seller("Official Store", verified = true, rating = rating),
+        specs = specsMap
+    )
+}
+
 /* ---------------- SCREEN ---------------- */
 @Composable
 fun TabletListScreen(
     navController: NavHostController? = null,
     onBack: () -> Unit
 ) {
+    val scope = rememberCoroutineScope()
+    var tablets by remember { mutableStateOf<List<Product>>(fallbackTablets) }
+    var isLoading by remember { mutableStateOf(false) }
+
+    // Fetch tablets from backend - refresh when screen is displayed
+    LaunchedEffect(navController?.currentBackStackEntry?.id) {
+        isLoading = true
+        scope.launch {
+            try {
+                android.util.Log.d("TabletListScreen", "🔌 Attempting to connect to backend API...")
+                val response = RetrofitInstance.api.listAuctions(category = "tablet")
+                android.util.Log.d("TabletListScreen", "📡 API Response Code: ${response.code()}")
+                
+                if (response.isSuccessful && response.body()?.success == true) {
+                    val items = response.body()?.items ?: emptyList()
+                    if (items.isNotEmpty()) {
+                        tablets = items.map { it.toTabletProduct() }
+                        android.util.Log.d("TabletListScreen", "✅ Backend Connected! Received ${items.size} tablets from API")
+                    } else {
+                        // API connected but returned empty list - use fallback data
+                        tablets = fallbackTablets
+                        android.util.Log.w("TabletListScreen", "⚠️ API connected but returned empty list - using fallback data")
+                    }
+                } else {
+                    // Use fallback data on API error
+                    tablets = fallbackTablets
+                    android.util.Log.w("TabletListScreen", "⚠️ API Error: ${response.code()} - Using fallback data")
+                }
+            } catch (e: Exception) {
+                // Use fallback data on network error
+                android.util.Log.e("TabletListScreen", "❌ Network Error: ${e.message}", e)
+                tablets = fallbackTablets
+            } finally {
+                isLoading = false
+            }
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -119,16 +198,27 @@ fun TabletListScreen(
         Spacer(modifier = Modifier.height(18.dp))
 
         /* ---------- LIST ---------- */
-        LazyColumn(
-            contentPadding = PaddingValues(18.dp),
-            verticalArrangement = Arrangement.spacedBy(18.dp)
-        ) {
-            items(tablets.size) { index ->
-                TabletCard(
-                    product = tablets[index],
-                    navController = navController,
-                    index = index
-                )
+        if (isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(32.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = Color(0xFFFFC107))
+            }
+        } else {
+            LazyColumn(
+                contentPadding = PaddingValues(18.dp),
+                verticalArrangement = Arrangement.spacedBy(18.dp)
+            ) {
+                items(tablets.size) { index ->
+                    TabletCard(
+                        product = tablets[index],
+                        navController = navController,
+                        index = index
+                    )
+                }
             }
         }
     }

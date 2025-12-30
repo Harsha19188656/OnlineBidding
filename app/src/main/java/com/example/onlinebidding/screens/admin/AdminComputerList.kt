@@ -104,7 +104,6 @@ fun AdminComputerList(
     onBack: () -> Unit = {},
     userToken: String?
 ) {
-    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var computers by remember { mutableStateOf<List<ComputerItem>>(fallbackComputers) }
     var isLoading by remember { mutableStateOf(false) }
@@ -197,6 +196,69 @@ fun AdminComputerList(
                 }) {
                     Icon(Icons.Default.Add, "Add Computer", tint = Color(0xFFFFC107))
                 }
+            }
+
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(computers.size.toString(), color = Color(0xFFFFC107))
+                    // Backend connection indicator
+                    if (!isLoading) {
+                        Text(
+                            text = if (isBackendConnected) "✅ Online" else "⚠️ Offline",
+                            color = if (isBackendConnected) Color(0xFF4CAF50) else Color(0xFFFF9800),
+                            fontSize = 10.sp,
+                            modifier = Modifier.padding(top = 2.dp)
+                        )
+                    }
+                }
+            }
+        }
+        
+        // Show connection status banner
+        if (!isLoading && errorMessage != null && !isBackendConnected) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 18.dp, vertical = 8.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0x33FF9800)),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFF9800))
+            ) {
+                Text(
+                    text = "⚠️ $errorMessage",
+                    color = Color(0xFFFF9800),
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(12.dp)
+                )
+            }
+        }
+        
+        // Show success banner
+        if (!isLoading && isBackendConnected && backendDataCount > 0) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 18.dp, vertical = 8.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0x334CAF50)),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF4CAF50))
+            ) {
+                Text(
+                    text = "✅ Connected to backend - $backendDataCount computers loaded",
+                    color = Color(0xFF4CAF50),
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(12.dp)
+                )
+            }
+        }
+        
+        // Show loading indicator
+        if (isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = Color(0xFFFFC107))
             }
         }
 

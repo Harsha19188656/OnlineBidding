@@ -347,11 +347,32 @@ fun AppNavHost() {
         
         composable("auction_detail/{index}") { backStackEntry ->
             val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
-            AuctionDetailScreen(
+            // Try to get auction_id from route parameter, otherwise use index
+            val auctionId = backStackEntry.arguments?.getString("auctionId")?.toIntOrNull()
+            AuctionDetailsScreen(
+                auctionId = auctionId,
                 laptopIndex = index,
+                deviceType = "laptop",
                 onBack = { navController.popBackStack() },
-                onSpecsClick = { /* Show specs dialog */ },
-                onBidClick = { navController.navigate("bid_comments/$index") }
+                onPlaceBid = { /* Handled in screen */ },
+                onBidHistoryClick = { 
+                    navController.navigate("bid_comments/laptop/$index")
+                }
+            )
+        }
+        
+        composable("auction_detail/{index}/{auctionId}") { backStackEntry ->
+            val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
+            val auctionId = backStackEntry.arguments?.getString("auctionId")?.toIntOrNull()
+            AuctionDetailsScreen(
+                auctionId = auctionId,
+                laptopIndex = index,
+                deviceType = "laptop",
+                onBack = { navController.popBackStack() },
+                onPlaceBid = { /* Handled in screen */ },
+                onBidHistoryClick = { 
+                    navController.navigate("bid_comments/laptop/$index")
+                }
             )
         }
 

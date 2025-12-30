@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -128,35 +129,30 @@ fun AdminMobileList(
                 if (response.isSuccessful && response.body()?.success == true) {
                     val items = response.body()?.items ?: emptyList()
                     backendDataCount = items.size
-                    if (items.isNotEmpty()) {
-                        mobiles = items.map { it.toMobile() }
-                        isBackendConnected = true
-                        errorMessage = null
-                        android.util.Log.d("AdminMobileList", "✅ Backend Connected! Received ${items.size} mobiles from API")
-                    } else {
-                        mobiles = fallbackMobiles
-                        isBackendConnected = false
-                        errorMessage = "No mobiles in database"
-                    }
+                    mobiles = items.map { it.toMobile() }
+                    isBackendConnected = true
+                    errorMessage = null
+                    android.util.Log.d("AdminMobileList", "✅ Backend Connected! Received ${items.size} mobiles from API")
                 } else {
-                    val errorBody = response.errorBody()?.string()
-                    android.util.Log.w("AdminMobileList", "⚠️ API Error: ${response.code()} - ${response.message()}. Error body: $errorBody")
+                    // Use fallback data on API error
                     mobiles = fallbackMobiles
                     isBackendConnected = false
                     errorMessage = "Using offline data (API error)"
+                    android.util.Log.w("AdminMobileList", "⚠️ API Error: ${response.code()} - Using fallback data")
                 }
             } catch (e: Exception) {
-                val errorMsg = e.message ?: "Unknown error"
-                android.util.Log.e("AdminMobileList", "❌ Network Error: $errorMsg", e)
                 mobiles = fallbackMobiles
                 isBackendConnected = false
-                errorMessage = "Network error: $errorMsg"
+                errorMessage = "Network error: ${e.message}"
+                android.util.Log.e("AdminMobileList", "❌ Network Error: ${e.message}", e)
+                android.util.Log.e("AdminMobileList", "📱 Using fallback data - Backend NOT connected")
             } finally {
                 isLoading = false
             }
         }
     }
 
+    // Fetch mobiles from backend
     LaunchedEffect(Unit) {
         loadMobiles()
     }
@@ -225,7 +221,7 @@ fun AdminMobileList(
                 border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFF9800))
             ) {
                 Text(
-                    text = "⚠️ Using offline data - Backend not connected",
+                    text = "⚠️ $errorMessage",
                     color = Color(0xFFFF9800),
                     fontSize = 12.sp,
                     modifier = Modifier.padding(12.dp)
@@ -294,7 +290,9 @@ fun AdminMobileList(
                         index = index,
                         userToken = userToken,
                         onDelete = { mobileIndex, productId ->
+                            // If productId exists, reload from backend; otherwise remove from local list
                             if (productId != null) {
+                                // Reload list after backend deletion
                                 scope.launch {
                                     try {
                                         val response = RetrofitInstance.api.listAuctions(category = "mobile")
@@ -308,6 +306,7 @@ fun AdminMobileList(
                                     }
                                 }
                             } else {
+                                // Remove from local list for fallback data
                                 mobiles = mobiles.filterIndexed { i, _ -> i != mobileIndex }
                             }
                         }
@@ -380,27 +379,34 @@ private fun AdminMobileCard(
                         if (userToken != null) {
                             IconButton(onClick = {
                                 if (mobile.productId != null) {
+                                    // Delete from backend
                                     scope.launch {
                                         try {
-                                            android.util.Log.d("AdminMobileList", "🗑️ Deleting mobile - productId: ${mobile.productId}")
+                                            android.util.Log.d("AdminMobileList", "🗑️ Deleting mobile - productId: ${mobile.productId}, token: ${userToken?.take(20)}...")
                                             val response = RetrofitInstance.api.adminDeleteProduct(
                                                 token = "Bearer $userToken",
                                                 request = AdminDeleteProductRequest(product_id = mobile.productId)
                                             )
+                                            android.util.Log.d("AdminMobileList", "📡 Delete response code: ${response.code()}")
                                             
                                             if (response.isSuccessful) {
                                                 val body = response.body()
+                                                android.util.Log.d("AdminMobileList", "📦 Delete response body: $body")
+                                                
                                                 if (body?.success == true) {
-                                                    android.util.Log.d("AdminMobileList", "✅ Delete successful")
-                                                    Toast.makeText(context, "Mobile deleted successfully", Toast.LENGTH_SHORT).show()
+                                                    android.util.Log.d("AdminMobileList", "✅ Delete successful - Product removed from database")
+                                                    Toast.makeText(context, "Mobile deleted successfully from database", Toast.LENGTH_SHORT).show()
                                                     onDelete(index, mobile.productId)
                                                 } else {
                                                     val errorMsg = body?.error ?: "Delete failed: ${response.code()}"
+                                                    android.util.Log.e("AdminMobileList", "❌ Delete failed: $errorMsg")
                                                     Toast.makeText(context, errorMsg, Toast.LENGTH_SHORT).show()
                                                 }
                                             } else {
+                                                val errorBody = response.errorBody()?.string()
+                                                android.util.Log.e("AdminMobileList", "❌ HTTP Error ${response.code()}: $errorBody")
                                                 val errorMsg = when (response.code()) {
-                                                    500 -> "Server error. Check backend logs"
+                                                    500 -> "Server error. Check backend logs (C:\\xampp\\apache\\logs\\error.log)"
                                                     401 -> "Authentication failed. Please login again"
                                                     404 -> "Delete endpoint not found"
                                                     else -> "Delete failed: ${response.code()}"
@@ -413,6 +419,7 @@ private fun AdminMobileCard(
                                         }
                                     }
                                 } else {
+                                    // Delete from local list (fallback data)
                                     Toast.makeText(context, "Mobile removed from list", Toast.LENGTH_SHORT).show()
                                     onDelete(index, null)
                                 }

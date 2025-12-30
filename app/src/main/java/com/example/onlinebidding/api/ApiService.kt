@@ -24,6 +24,16 @@ interface ApiService {
         @Query("offset") offset: Int = 0
     ): Response<AuctionListResponse>
     
+    @GET("api/auctions/details.php")
+    suspend fun auctionDetails(
+        @Query("id") id: Int
+    ): Response<AuctionDetailsResponse>
+    
+    @POST("api/bids/place.php")
+    suspend fun placeBid(
+        @Body request: PlaceBidRequest
+    ): Response<PlaceBidResponse>
+    
     // Admin endpoints
     @GET("api/admin/products/list.php")
     suspend fun adminListProducts(
@@ -90,5 +100,34 @@ data class AuctionListResponse(
     val success: Boolean,
     val items: List<AuctionListItem> = emptyList(),
     val count: Int = 0,
+    val error: String? = null
+)
+
+data class AuctionDetailsResponse(
+    val success: Boolean,
+    val product: ProductDto? = null,
+    val auction: AuctionDto? = null,
+    val bids: List<BidDto> = emptyList(),
+    val error: String? = null
+)
+
+data class BidDto(
+    val id: Int,
+    val auction_id: Int,
+    val user_id: Int,
+    val amount: Double,
+    val created_at: String?,
+    val user_name: String? = null
+)
+
+data class PlaceBidRequest(
+    val auction_id: Int,
+    val amount: Double,
+    val user_id: Int = 1
+)
+
+data class PlaceBidResponse(
+    val success: Boolean,
+    val current_price: Double? = null,
     val error: String? = null
 )

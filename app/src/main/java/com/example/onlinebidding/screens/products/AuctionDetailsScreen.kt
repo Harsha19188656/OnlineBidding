@@ -3,6 +3,7 @@ package com.example.onlinebidding.screens.products
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -17,19 +18,30 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import coil.compose.rememberAsyncImagePainter
+import coil.request.ImageRequest
 import com.example.onlinebidding.R
+import com.example.onlinebidding.api.RetrofitInstance
+import com.example.onlinebidding.screens.products.SpecificationsDialog
+import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.*
 
 /* ---------------- DATA MODEL ---------------- */
 
@@ -148,11 +160,139 @@ private val laptopAuctions = listOf(
 
 @Composable
 fun AuctionDetailsScreen(
-    laptopIndex: Int = 0,
+    auctionId: Int? = null,
+    laptopIndex: Int = 0, // Fallback for backward compatibility
+    deviceType: String = "laptop", // For specifications dialog
     onBack: () -> Unit = {},
-    onPlaceBid: () -> Unit = {}
+    onPlaceBid: () -> Unit = {},
+    onBidHistoryClick: (() -> Unit)? = null // Callback for Bid History navigation
 ) {
-    val laptop = laptopAuctions.getOrElse(laptopIndex) { laptopAuctions[0] }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var laptop by remember { mutableStateOf<LaptopAuctionData?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var showBidDialog by remember { mutableStateOf(false) }
+    var showSpecsDialog by remember { mutableStateOf(false) }
+    var currentAuctionId by remember { mutableStateOf<Int?>(auctionId) }
+    
+    // Function to load auction details
+    fun loadAuctionDetails(id: Int) {
+        isLoading = true
+        errorMessage = null
+        scope.launch {
+            try {
+                android.util.Log.d("AuctionDetails", "🔌 Fetching auction details for ID: $id")
+                val response = RetrofitInstance.api.auctionDetails(id)
+                
+                if (response.isSuccessful && response.body()?.success == true) {
+                    val data = response.body()!!
+                    val product = data.product
+                    val auction = data.auction
+                    val bids = data.bids
+                    
+                    if (product != null && auction != null) {
+                        // Parse specs to extract processor, storage, display, ram
+                        val specsMap = parseSpecs(product.specs ?: "")
+                        
+                        // Convert bids to BidInfo format
+                        val latestBids = bids.take(3).mapIndexed { index, bid ->
+                            BidInfo(
+                                rank = index + 1,
+                                name = bid.user_name ?: "User ${bid.user_id}",
+                                amount = "₹${String.format("%.0f", bid.amount)}",
+                                isTopBid = index == 0
+                            )
+                        }
+                        
+                        laptop = LaptopAuctionData(
+                            name = product.title,
+                            subtitle = "Premium Computing",
+                            condition = product.condition ?: "Excellent",
+                            sellerName = "TechMaster Pro", // Default, can be added to backend
+                            sellerRating = 4.9, // Default, can be added to backend
+                            sales = 248, // Default, can be added to backend
+                            imageRes = R.drawable.ic_macbook, // Fallback
+                            processor = specsMap["Processor"] ?: specsMap["processor"] ?: "Apple M3 Max",
+                            storage = specsMap["Storage"] ?: specsMap["storage"] ?: "1TB SSD",
+                            display = specsMap["Display"] ?: specsMap["display"] ?: "16.2\" Liquid",
+                            ram = specsMap["RAM"] ?: specsMap["ram"] ?: "48GB Unified Memory",
+                            timeRemaining = calculateTimeRemaining(auction.end_at),
+                            currentBid = "₹${String.format("%.0f", auction.current_price)}",
+                            maxPrice = "₹${String.format("%.0f", product.base_price)}",
+                            activeBidders = bids.distinctBy { it.user_id }.size,
+                            totalBids = bids.size,
+                            conditionDetails = product.description ?: "Brand new, sealed box. All accessories included.",
+                            qualityPercent = 95,
+                            latestBids = latestBids,
+                            imageCount = 3
+                        )
+                        android.util.Log.d("AuctionDetails", "✅ Successfully loaded auction details")
+                    } else {
+                        errorMessage = "Auction data incomplete"
+                    }
+                } else {
+                    errorMessage = response.body()?.error ?: "Failed to load auction details"
+                    android.util.Log.w("AuctionDetails", "⚠️ API Error: ${response.code()}")
+                }
+            } catch (e: Exception) {
+                errorMessage = "Network error: ${e.message}"
+                android.util.Log.e("AuctionDetails", "❌ Network Error: ${e.message}", e)
+            } finally {
+                isLoading = false
+            }
+        }
+    }
+    
+    // Fetch auction details from backend
+    LaunchedEffect(auctionId) {
+        if (auctionId != null && auctionId > 0) {
+            currentAuctionId = auctionId
+            loadAuctionDetails(auctionId)
+        } else {
+            // Use fallback data
+            laptop = laptopAuctions.getOrElse(laptopIndex) { laptopAuctions[0] }
+            isLoading = false
+        }
+    }
+    
+    // Show loading or error state
+    if (isLoading) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator(color = Color(0xFFFFC107))
+        }
+        return
+    }
+    
+    if (errorMessage != null || laptop == null) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+                .padding(20.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = errorMessage ?: "Failed to load auction",
+                    color = Color.White,
+                    fontSize = 16.sp
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(onClick = onBack) {
+                    Text("Go Back")
+                }
+            }
+        }
+        return
+    }
+    
+    val laptopData = laptop!!
     val background = Brush.verticalGradient(
         colors = listOf(Color(0xFF0D0D0D), Color.Black)
     )
@@ -190,7 +330,7 @@ fun AuctionDetailsScreen(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = laptop.subtitle,
+                        text = laptopData.subtitle,
                         color = Color(0x99FFC107),
                         fontSize = 12.sp
                     )
@@ -215,9 +355,10 @@ fun AuctionDetailsScreen(
                         ),
                     contentAlignment = Alignment.Center
                 ) {
+                    // Use fallback image for now (can be enhanced to load from URL)
                     Image(
-                        painter = painterResource(laptop.imageRes),
-                        contentDescription = laptop.name,
+                        painter = painterResource(laptopData.imageRes),
+                        contentDescription = laptopData.name,
                         modifier = Modifier
                             .fillMaxSize()
                             .clip(RoundedCornerShape(20.dp)),
@@ -288,7 +429,7 @@ fun AuctionDetailsScreen(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            laptop.imageCount.toString(),
+                            laptopData.imageCount.toString(),
                             color = Color.White,
                             fontSize = 12.sp
                         )
@@ -301,7 +442,7 @@ fun AuctionDetailsScreen(
             /* ---------- PRODUCT INFO ---------- */
             Column(modifier = Modifier.padding(horizontal = 20.dp)) {
                 Text(
-                    text = laptop.name,
+                    text = laptopData.name,
                     color = Color.White,
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold
@@ -313,7 +454,7 @@ fun AuctionDetailsScreen(
                         shape = RoundedCornerShape(50)
                     ) {
                         Text(
-                            laptop.condition,
+                            laptopData.condition,
                             color = Color.Black,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
@@ -322,7 +463,7 @@ fun AuctionDetailsScreen(
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        "by ${laptop.sellerName}",
+                        "by ${laptopData.sellerName}",
                         color = Color(0xFFFFECB3),
                         fontSize = 14.sp
                     )
@@ -335,7 +476,7 @@ fun AuctionDetailsScreen(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        "${laptop.sellerRating} (${laptop.sales} sales)",
+                        "${laptopData.sellerRating} (${laptopData.sales} sales)",
                         color = Color(0xFFFFC107),
                         fontSize = 12.sp
                     )
@@ -344,15 +485,19 @@ fun AuctionDetailsScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            /* ---------- SPECIFICATIONS CARDS ---------- */
+            /* ---------- SPECIFICATIONS CARDS (2x2 Grid) ---------- */
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                SpecCard("Processor", laptop.processor, Color(0xFFFFC107), Icons.Default.Info)
-                SpecCard("Storage", laptop.storage, Color(0xFFFFC107), Icons.Default.Info)
+                Box(modifier = Modifier.weight(1f)) {
+                    SpecCard("Processor", laptopData.processor, Color(0xFFFFC107), Icons.Default.Info)
+                }
+                Box(modifier = Modifier.weight(1f)) {
+                    SpecCard("Storage", laptopData.storage, Color(0xFFFFC107), Icons.Default.Info)
+                }
             }
             Spacer(modifier = Modifier.height(12.dp))
             Row(
@@ -362,10 +507,10 @@ fun AuctionDetailsScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Box(modifier = Modifier.weight(1f)) {
-                    SpecCard("Display", laptop.display, Color(0xFF2196F3), Icons.Default.Info)
+                    SpecCard("Display", laptopData.display, Color(0xFF2196F3), Icons.Default.Info)
                 }
                 Box(modifier = Modifier.weight(1f)) {
-                    SpecCard("RAM", laptop.ram, Color(0xFF4CAF50), Icons.Default.Info)
+                    SpecCard("RAM", laptopData.ram, Color(0xFF4CAF50), Icons.Default.Info)
                 }
             }
 
@@ -380,14 +525,25 @@ fun AuctionDetailsScreen(
                 shape = RoundedCornerShape(20.dp)
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
-                    Text(
-                        "Auction Ends In",
-                        color = Color(0xFFFF8A80),
-                        fontSize = 14.sp
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Info, // Clock icon representation
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Text(
+                            "Auction Ends In",
+                            color = Color.White,
+                            fontSize = 14.sp
+                        )
+                    }
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        laptop.timeRemaining,
+                        laptopData.timeRemaining,
                         color = Color.White,
                         fontSize = 32.sp,
                         fontWeight = FontWeight.Bold
@@ -411,10 +567,10 @@ fun AuctionDetailsScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Box(modifier = Modifier.weight(1f)) {
-                BidInfoCard("Current Bid", laptop.currentBid, "Highest offer", true)
+                BidInfoCard("Current Bid", laptopData.currentBid, "Highest offer", true)
                 }
                 Box(modifier = Modifier.weight(1f)) {
-                BidInfoCard("Max Price", laptop.maxPrice, "Reserve limit", false)
+                BidInfoCard("Max Price", laptopData.maxPrice, "Reserve limit", false)
                 }
             }
 
@@ -443,7 +599,7 @@ fun AuctionDetailsScreen(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                "${laptop.activeBidders} Active Bidders",
+                                "${laptopData.activeBidders} Active Bidders",
                                 color = Color.White,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Medium
@@ -454,7 +610,7 @@ fun AuctionDetailsScreen(
                             shape = RoundedCornerShape(8.dp)
                         ) {
                             Text(
-                                "${laptop.totalBids} bids",
+                                "${laptopData.totalBids} bids",
                                 color = Color.Black,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
@@ -464,7 +620,7 @@ fun AuctionDetailsScreen(
                     }
                     Spacer(modifier = Modifier.height(12.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        repeat(minOf(4, laptop.activeBidders)) { index ->
+                        repeat(minOf(4, laptopData.activeBidders)) { index ->
                             Box(
                                 modifier = Modifier
                                     .size(32.dp)
@@ -478,14 +634,14 @@ fun AuctionDetailsScreen(
                                     fontWeight = FontWeight.Bold
                                 )
                             }
-                            if (index < 3 && laptop.activeBidders > 4) {
+                            if (index < 3 && laptopData.activeBidders > 4) {
                                 Spacer(modifier = Modifier.width(4.dp))
                             }
                         }
-                        if (laptop.activeBidders > 4) {
+                        if (laptopData.activeBidders > 4) {
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                "+ ${laptop.activeBidders - 4} more bidding",
+                                "+ ${laptopData.activeBidders - 4} more bidding",
                                 color = Color(0x99FFFFFF),
                                 fontSize = 12.sp
                             )
@@ -504,11 +660,39 @@ fun AuctionDetailsScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Box(modifier = Modifier.weight(1f)) {
-                ActionCard("Full Specs", Icons.Default.Info, "View details")
+                    ActionCard(
+                        "Full Specs", 
+                        Icons.Default.Info, 
+                        "View details",
+                        onClick = { showSpecsDialog = true }
+                    )
                 }
                 Box(modifier = Modifier.weight(1f)) {
-                ActionCard("Bid History", Icons.Default.List, "Live updates", laptop.totalBids.toString())
+                    ActionCard(
+                        "Bid History", 
+                        Icons.Default.List, 
+                        "Live updates", 
+                        badge = laptopData.totalBids.toString(),
+                        onClick = { 
+                            onBidHistoryClick?.invoke() ?: run {
+                                // Default navigation if callback not provided
+                                android.util.Log.d("AuctionDetails", "Bid History clicked")
+                            }
+                        }
+                    )
                 }
+            }
+            
+            Spacer(modifier = Modifier.height(20.dp))
+            
+            // Specifications Dialog
+            if (showSpecsDialog && laptopData != null) {
+                SpecificationsDialog(
+                    laptopIndex = laptopIndex,
+                    deviceType = deviceType,
+                    deviceIndex = laptopIndex,
+                    onDismiss = { showSpecsDialog = false }
+                )
             }
 
             Spacer(modifier = Modifier.height(20.dp))
@@ -539,7 +723,7 @@ fun AuctionDetailsScreen(
                     }
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        laptop.conditionDetails,
+                        laptopData.conditionDetails,
                         color = Color(0xB3FFFFFF),
                         fontSize = 13.sp,
                         lineHeight = 20.sp
@@ -551,7 +735,7 @@ fun AuctionDetailsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         LinearProgressIndicator(
-                            progress = laptop.qualityPercent / 100f,
+                            progress = laptopData.qualityPercent / 100f,
                             modifier = Modifier
                                 .weight(1f)
                                 .height(8.dp)
@@ -561,7 +745,7 @@ fun AuctionDetailsScreen(
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
-                            "${laptop.qualityPercent}% Quality",
+                            "${laptopData.qualityPercent}% Quality",
                             color = Color(0xFFFFC107),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium
@@ -595,7 +779,7 @@ fun AuctionDetailsScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            laptop.latestBids.forEach { bid ->
+            laptopData.latestBids.forEach { bid ->
                 LatestBidRow(bid)
                 Spacer(modifier = Modifier.height(8.dp))
             }
@@ -607,7 +791,7 @@ fun AuctionDetailsScreen(
                     .padding(horizontal = 20.dp)
             ) {
                 Text(
-                    "View All ${laptop.totalBids} Bids →",
+                    "View All ${laptopData.totalBids} Bids →",
                     color = Color(0xFFFFC107),
                     fontSize = 14.sp
                 )
@@ -618,7 +802,13 @@ fun AuctionDetailsScreen(
 
         /* ---------- PLACE BID BUTTON ---------- */
         Button(
-            onClick = onPlaceBid,
+            onClick = {
+                if (currentAuctionId != null) {
+                    showBidDialog = true
+                } else {
+                    onPlaceBid()
+                }
+            },
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(20.dp)
@@ -634,6 +824,59 @@ fun AuctionDetailsScreen(
                 fontWeight = FontWeight.Bold
             )
         }
+        
+        // Bid Entry Dialog
+        if (showBidDialog && currentAuctionId != null) {
+            BidEntryDialog(
+                currentBid = laptopData.currentBid.replace("₹", "").replace(",", "").toDoubleOrNull() ?: 0.0,
+                onDismiss = { showBidDialog = false },
+                onConfirm = { amount ->
+                    scope.launch {
+                        try {
+                            val bidAmount = amount.replace("₹", "").replace(",", "").toDoubleOrNull() ?: 0.0
+                            android.util.Log.d("AuctionDetails", "💰 Placing bid: ₹$bidAmount for auction $currentAuctionId")
+                            
+                            val response = RetrofitInstance.api.placeBid(
+                                com.example.onlinebidding.api.PlaceBidRequest(
+                                    auction_id = currentAuctionId!!,
+                                    amount = bidAmount,
+                                    user_id = 1 // TODO: Get from logged in user
+                                )
+                            )
+                            
+                            if (response.isSuccessful && response.body()?.success == true) {
+                                android.util.Log.d("AuctionDetails", "✅ Bid placed successfully!")
+                                // Refresh auction details
+                                loadAuctionDetails(currentAuctionId!!)
+                                showBidDialog = false
+                                
+                                // Show success toast
+                                android.widget.Toast.makeText(
+                                    context,
+                                    "Bid placed successfully!",
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                            } else {
+                                val error = response.body()?.error ?: "Failed to place bid"
+                                android.util.Log.e("AuctionDetails", "❌ Bid failed: $error")
+                                android.widget.Toast.makeText(
+                                    context,
+                                    error,
+                                    android.widget.Toast.LENGTH_LONG
+                                ).show()
+                            }
+                        } catch (e: Exception) {
+                            android.util.Log.e("AuctionDetails", "❌ Network error: ${e.message}", e)
+                            android.widget.Toast.makeText(
+                                context,
+                                "Network error: ${e.message}",
+                                android.widget.Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    }
+                }
+            )
+        }
     }
 }
 
@@ -647,7 +890,9 @@ private fun SpecCard(title: String, value: String, iconColor: Color, icon: andro
         shape = RoundedCornerShape(16.dp)
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Icon(
@@ -667,7 +912,8 @@ private fun SpecCard(title: String, value: String, iconColor: Color, icon: andro
                 value,
                 color = Color.White,
                 fontSize = 13.sp,
-                fontWeight = FontWeight.Medium
+                fontWeight = FontWeight.Medium,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
         }
     }
@@ -706,10 +952,18 @@ private fun BidInfoCard(title: String, amount: String, subtitle: String, isCurre
 }
 
 @Composable
-private fun ActionCard(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector, subtitle: String, badge: String? = null) {
+private fun ActionCard(
+    title: String, 
+    icon: androidx.compose.ui.graphics.vector.ImageVector, 
+    subtitle: String, 
+    badge: String? = null,
+    onClick: () -> Unit = {}
+) {
     Box {
         Card(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onClick() },
             colors = CardDefaults.cardColors(containerColor = Color(0xFF1A1A1A)),
             shape = RoundedCornerShape(16.dp)
         ) {
@@ -819,6 +1073,160 @@ private fun LatestBidRow(bid: BidInfo) {
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
             )
+        }
+    }
+}
+
+/* ---------------- HELPER FUNCTIONS ---------------- */
+
+private fun parseSpecs(specsString: String): Map<String, String> {
+    val specsMap = mutableMapOf<String, String>()
+    
+    if (specsString.isEmpty()) return specsMap
+    
+    // Try to parse as "key: value" format
+    val parts = specsString.split(" · ", " | ", ", ")
+    for (part in parts) {
+        val colonIndex = part.indexOf(':')
+        if (colonIndex > 0) {
+            val key = part.substring(0, colonIndex).trim()
+            val value = part.substring(colonIndex + 1).trim()
+            specsMap[key] = value
+        }
+    }
+    
+    return specsMap
+}
+
+private fun calculateTimeRemaining(endAt: String?): String {
+    if (endAt == null) return "0:30"
+    
+    try {
+        val format = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+        val endTime = format.parse(endAt)
+        val now = Date()
+        
+        if (endTime != null && endTime.after(now)) {
+            val diff = endTime.time - now.time
+            val minutes = (diff / 60000).toInt()
+            val seconds = ((diff % 60000) / 1000).toInt()
+            return "$minutes:${String.format("%02d", seconds)}"
+        }
+    } catch (e: Exception) {
+        android.util.Log.e("AuctionDetails", "Error parsing end_at: ${e.message}")
+    }
+    
+    return "0:30"
+}
+
+/* ---------------- BID ENTRY DIALOG ---------------- */
+
+@Composable
+private fun BidEntryDialog(
+    currentBid: Double,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    var bidAmount by remember { mutableStateOf("") }
+    val minBid = currentBid + 1000 // Minimum bid is current + 1000
+    
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF1A1A1A)),
+            shape = RoundedCornerShape(20.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "Place Your Bid",
+                        color = Color(0xFFFFC107),
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            Icons.Default.Close,
+                            "Close",
+                            tint = Color(0xFFFFC107)
+                        )
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Text(
+                    "Current Bid: ₹${String.format("%.0f", currentBid)}",
+                    color = Color(0x99FFFFFF),
+                    fontSize = 14.sp
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    "Minimum Bid: ₹${String.format("%.0f", minBid)}",
+                    color = Color(0xFFFFC107),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                
+                Spacer(modifier = Modifier.height(20.dp))
+                
+                // Bid Amount Field
+                Text("Bid Amount (₹)", color = Color(0xFFFFC107), fontSize = 14.sp)
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = bidAmount,
+                    onValueChange = { 
+                        // Allow only numbers
+                        bidAmount = it.filter { char -> char.isDigit() }
+                    },
+                    placeholder = { Text("Enter amount", color = Color.Gray) },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color(0xFFFFC107),
+                        unfocusedBorderColor = Color(0xFF666666),
+                        focusedContainerColor = Color(0xFF0F0F0F),
+                        unfocusedContainerColor = Color(0xFF0F0F0F),
+                        cursorColor = Color(0xFFFFC107),
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true,
+                    leadingIcon = {
+                        Text("₹", color = Color(0xFFFFC107), modifier = Modifier.padding(start = 12.dp))
+                    }
+                )
+                
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                // Confirm Button
+                Button(
+                    onClick = {
+                        if (bidAmount.isNotBlank()) {
+                            val amount = bidAmount.toDoubleOrNull() ?: 0.0
+                            if (amount >= minBid) {
+                                onConfirm("₹$bidAmount")
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF9800)),
+                    shape = RoundedCornerShape(25.dp),
+                    enabled = bidAmount.isNotBlank() && (bidAmount.toDoubleOrNull() ?: 0.0) >= minBid
+                ) {
+                    Text("Submit Bid", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                }
+            }
         }
     }
 }
