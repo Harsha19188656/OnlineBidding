@@ -172,7 +172,7 @@ fun MobileDetails(
                 Button(
                     onClick = {
                         if (hasCredits) {
-                            navController?.navigate("mobile_auction_detail/$index")
+                            navController?.navigate("mobile_auction_detail/$index/${product?.name ?: ""}")
                         } else {
                             navController?.navigate("credits/mobile/$index/${product?.name ?: ""}")
                         }

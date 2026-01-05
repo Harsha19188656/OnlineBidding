@@ -325,7 +325,7 @@ fun ComputerCard(
                 modifier = Modifier.weight(1f),
                 onClick = {
                     if (hasCredits) {
-                        navController.navigate("computer_auction_detail/$index")
+                        navController.navigate("computer_auction_detail/$index/${item.name}")
                     } else {
                         navController.navigate("credits/computer/$index/${item.name}")
                     }

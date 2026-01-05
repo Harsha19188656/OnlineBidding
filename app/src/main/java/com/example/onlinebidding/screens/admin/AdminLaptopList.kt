@@ -475,7 +475,7 @@ private fun AdminLaptopCard(
 
             Button(
                 onClick = {
-                    navController.navigate("laptop_auction_detail/$index")
+                    navController.navigate("laptop_auction_detail/$index/${laptop.name}")
                 },
                 modifier = Modifier.weight(1f),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF9800))

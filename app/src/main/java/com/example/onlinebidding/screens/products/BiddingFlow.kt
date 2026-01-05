@@ -31,6 +31,9 @@ import com.example.onlinebidding.R
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
+import com.example.onlinebidding.api.RetrofitInstance
+import androidx.compose.ui.platform.LocalContext
+import android.widget.Toast
 
 // Data classes - using existing ones from AuctionDetailsScreen
 // Import the data classes from AuctionDetailsScreen
@@ -680,9 +683,10 @@ fun SpecificationsDialog(
     laptopIndex: Int = 0,
     deviceType: String = "laptop",
     deviceIndex: Int = 0,
+    productName: String = "",
     onDismiss: () -> Unit
 ) {
-    // Define specs based on device type and index
+    // Define specs based on device type and index, with special handling for mouse products
     val specsMap = when (deviceType) {
         "laptop" -> when (laptopIndex) {
             0 -> mapOf( // MacBook Pro 16" M3 Max
@@ -765,32 +769,47 @@ fun SpecificationsDialog(
             )
             else -> mapOf()
         }
-        "monitor" -> when (deviceIndex) {
-            0 -> mapOf( // Samsung Odyssey G9
-                "Size" to "49 inch Curved",
-                "Resolution" to "5120x1440 DQHD",
-                "Refresh Rate" to "240Hz",
-                "Panel" to "Quantum Dot VA",
-                "HDR" to "HDR1000",
-                "Response" to "1ms GtG"
-            )
-            1 -> mapOf( // LG UltraFine 5K
-                "Size" to "27 inch",
-                "Resolution" to "5120x2880 5K",
-                "Color Gamut" to "P3 Wide Color",
-                "Brightness" to "500 nits",
-                "Ports" to "Thunderbolt 3",
-                "Built" to "Webcam + Speakers"
-            )
-            2 -> mapOf( // Dell UltraSharp U3423WE
-                "Size" to "34 inch Ultrawide",
-                "Resolution" to "3440x1440 WQHD",
-                "Color Gamut" to "99% sRGB",
-                "Brightness" to "400 nits",
-                "Ports" to "USB-C Hub 90W",
-                "Built" to "KVM Switch"
-            )
-            else -> mapOf()
+        "monitor" -> {
+            // Check if product is a mouse/Logitech product
+            val normalizedName = productName.lowercase()
+            if (normalizedName.contains("mouse", ignoreCase = true) || normalizedName.contains("logitech", ignoreCase = true)) {
+                mapOf( // Logitech Mouse
+                    "Type" to "Wireless Mouse",
+                    "Buttons" to "6 Buttons",
+                    "Connectivity" to "Wireless",
+                    "DPI" to "Up to 16000 DPI",
+                    "Battery" to "Rechargeable",
+                    "Color" to "Black"
+                )
+            } else {
+                when (deviceIndex) {
+                    0 -> mapOf( // Samsung Odyssey G9
+                        "Size" to "49 inch Curved",
+                        "Resolution" to "5120x1440 DQHD",
+                        "Refresh Rate" to "240Hz",
+                        "Panel" to "Quantum Dot VA",
+                        "HDR" to "HDR1000",
+                        "Response" to "1ms GtG"
+                    )
+                    1 -> mapOf( // LG UltraFine 5K
+                        "Size" to "27 inch",
+                        "Resolution" to "5120x2880 5K",
+                        "Color Gamut" to "P3 Wide Color",
+                        "Brightness" to "500 nits",
+                        "Ports" to "Thunderbolt 3",
+                        "Built" to "Webcam + Speakers"
+                    )
+                    2 -> mapOf( // Dell UltraSharp U3423WE
+                        "Size" to "34 inch Ultrawide",
+                        "Resolution" to "3440x1440 WQHD",
+                        "Color Gamut" to "99% sRGB",
+                        "Brightness" to "400 nits",
+                        "Ports" to "USB-C Hub 90W",
+                        "Built" to "KVM Switch"
+                    )
+                    else -> mapOf()
+                }
+            }
         }
         "tablet" -> when (deviceIndex) {
             0 -> mapOf( // iPad Pro 12.9" M2
@@ -826,12 +845,15 @@ fun SpecificationsDialog(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
+                .fillMaxHeight(0.8f)
                 .padding(16.dp),
             colors = CardDefaults.cardColors(containerColor = Color(0xFF1A1A1A)),
             shape = RoundedCornerShape(20.dp)
         ) {
             Column(
-                modifier = Modifier.padding(20.dp)
+                modifier = Modifier
+                    .padding(20.dp)
+                    .verticalScroll(rememberScrollState())
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -882,6 +904,7 @@ fun BidCommentsScreen(
     laptopIndex: Int = 0,
     deviceType: String = "laptop",
     initialTime: Int = 30,
+    auctionId: Int? = null, // Backend auction ID
     onBack: () -> Unit,
     onAddBid: () -> Unit,
     onTimeUp: (winnerName: String, winnerBid: String) -> Unit
@@ -998,13 +1021,73 @@ fun BidCommentsScreen(
         }
     }
     
+    // Helper function to parse amount string to numeric value
+    fun parseAmount(amountStr: String): Long {
+        return amountStr.replace("₹", "").replace(",", "").replace(" ", "").toLongOrNull() ?: 0L
+    }
+    
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    
     // Timer always starts at 30 seconds
     var timeLeft by remember { mutableStateOf(30) }
-    var bids by remember { mutableStateOf(initialBidsData) }
+    
+    // Sort initial bids by amount (highest first) and mark only first as top bid
+    val sortedInitialBids = initialBidsData.sortedByDescending { parseAmount(it.amount) }
+        .mapIndexed { index, bid -> bid.copy(isTopBid = index == 0) }
+    
+    var bids by remember { mutableStateOf(sortedInitialBids) }
+    var isLoading by remember { mutableStateOf(auctionId != null) }
     var showBidDialog by remember { mutableStateOf(false) }
     var timerPaused by remember { mutableStateOf(false) }
     var timerResetKey by remember { mutableStateOf(0) } // Key to restart timer
-    val scope = rememberCoroutineScope()
+    var currentAuctionId by remember { mutableStateOf(auctionId) }
+    var currentBidPrice by remember { mutableStateOf(0.0) }
+    
+    // Load bids from API if auctionId is provided
+    LaunchedEffect(auctionId) {
+        android.util.Log.d("BidComments", "🔍 LaunchedEffect triggered - auctionId: $auctionId, currentAuctionId: $currentAuctionId")
+        if (auctionId != null && auctionId > 0) {
+            currentAuctionId = auctionId
+            isLoading = true
+            try {
+                android.util.Log.d("BidComments", "🔌 Loading bids for auction ID: $auctionId")
+                val response = RetrofitInstance.api.auctionDetails(auctionId)
+                
+                if (response.isSuccessful && response.body()?.success == true) {
+                    val auctionData = response.body()!!
+                    val apiBids = auctionData.bids
+                    currentBidPrice = auctionData.auction?.current_price ?: 0.0
+                    
+                    // Convert API bids to BidEntry format
+                    val convertedBids = apiBids.map { bidDto ->
+                        val amountStr = "₹${String.format("%,.0f", bidDto.amount)}"
+                        BidEntry(
+                            name = bidDto.user_name ?: "Unknown",
+                            amount = amountStr,
+                            isTopBid = false, // Will be sorted below
+                            isYou = bidDto.user_id == 25 // TODO: Get from logged in user
+                        )
+                    }
+                    
+                    // Sort by amount (highest first) and mark top bid
+                    val sortedBids = convertedBids.sortedByDescending { parseAmount(it.amount) }
+                        .mapIndexed { index, bid -> bid.copy(isTopBid = index == 0) }
+                    
+                    bids = sortedBids
+                    android.util.Log.d("BidComments", "✅ Loaded ${sortedBids.size} bids from API")
+                } else {
+                    android.util.Log.w("BidComments", "⚠️ API error, using fallback data")
+                    // Keep using fallback data
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("BidComments", "❌ Error loading bids: ${e.message}", e)
+                // Keep using fallback data
+            } finally {
+                isLoading = false
+            }
+        }
+    }
     
     LaunchedEffect(timerResetKey) {
         timeLeft = 30
@@ -1028,15 +1111,106 @@ fun BidCommentsScreen(
     fun addUserBid(name: String, amount: String) {
         // Format the amount with currency symbol and commas
         val amountNum = amount.toLongOrNull() ?: 0L
-        val formattedAmount = "₹${String.format("%,d", amountNum)}"
-        // Add user bid as top bid
-        bids = listOf(
-            BidEntry(name, formattedAmount, true, true)
-        ) + bids.map { it.copy(isTopBid = false) }
-        showBidDialog = false
-        timerPaused = false
-        // Reset timer to 30 seconds when a new bid is added
-        timerResetKey++
+        
+        android.util.Log.d("BidComments", "🔍 addUserBid called - name: $name, amount: $amount, currentAuctionId: $currentAuctionId, auctionId: $auctionId")
+        
+        // If we have an auction ID, save bid to backend
+        if (currentAuctionId != null && currentAuctionId!! > 0) {
+            scope.launch {
+                try {
+                    val bidAmount = amountNum.toDouble()
+                    android.util.Log.d("BidComments", "💰 Placing bid: ₹$bidAmount for auction $currentAuctionId")
+                    
+                    val response = RetrofitInstance.api.placeBid(
+                        com.example.onlinebidding.api.PlaceBidRequest(
+                            auction_id = currentAuctionId!!,
+                            amount = bidAmount,
+                            user_id = 25 // TODO: Get from logged in user session
+                        )
+                    )
+                    
+                    if (response.isSuccessful) {
+                        val responseBody = response.body()
+                        if (responseBody?.success == true) {
+                            android.util.Log.d("BidComments", "✅ Bid placed successfully! Bid ID: ${responseBody.current_price}")
+                            
+                            // Reload bids from API to get updated list
+                            val apiResponse = RetrofitInstance.api.auctionDetails(currentAuctionId!!)
+                            if (apiResponse.isSuccessful && apiResponse.body()?.success == true) {
+                                val apiBids = apiResponse.body()!!.bids
+                                currentBidPrice = apiResponse.body()!!.auction?.current_price ?: 0.0
+                                
+                                // Convert API bids to BidEntry format
+                                val convertedBids = apiBids.map { bidDto ->
+                                    val amountStr = "₹${String.format("%,.0f", bidDto.amount)}"
+                                    BidEntry(
+                                        name = bidDto.user_name ?: "Unknown",
+                                        amount = amountStr,
+                                        isTopBid = false,
+                                        isYou = bidDto.user_id == 25
+                                    )
+                                }
+                                
+                                // Sort and mark top bid
+                                val sortedBids = convertedBids.sortedByDescending { parseAmount(it.amount) }
+                                    .mapIndexed { index, bid -> bid.copy(isTopBid = index == 0) }
+                                
+                                bids = sortedBids
+                                
+                                Toast.makeText(context, "Bid placed successfully!", Toast.LENGTH_SHORT).show()
+                            } else {
+                                android.util.Log.w("BidComments", "⚠️ Bid placed but failed to reload bids")
+                                Toast.makeText(context, "Bid placed! Refreshing...", Toast.LENGTH_SHORT).show()
+                            }
+                            
+                            showBidDialog = false
+                            timerPaused = false
+                            timerResetKey++
+                        } else {
+                            // API returned success=false
+                            val error = responseBody?.error ?: "Failed to place bid"
+                            android.util.Log.e("BidComments", "❌ Bid rejected by API: $error")
+                            android.util.Log.e("BidComments", "   Response code: ${response.code()}")
+                            Toast.makeText(context, "Bid rejected: $error", Toast.LENGTH_LONG).show()
+                        }
+                    } else {
+                        // HTTP error (4xx, 5xx)
+                        val errorBody = response.errorBody()?.string()
+                        val error = try {
+                            response.body()?.error ?: errorBody ?: "HTTP ${response.code()}: Failed to place bid"
+                        } catch (e: Exception) {
+                            "HTTP ${response.code()}: Failed to place bid"
+                        }
+                        android.util.Log.e("BidComments", "❌ HTTP Error ${response.code()}: $error")
+                        Toast.makeText(context, "Error: $error", Toast.LENGTH_LONG).show()
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("BidComments", "❌ Network error: ${e.message}", e)
+                    Toast.makeText(context, "Network error: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+        } else {
+            // Fallback: Add bid locally (for testing without auction ID)
+            val formattedAmount = "₹${String.format("%,d", amountNum)}"
+            val newUserBid = BidEntry(name, formattedAmount, false, true)
+            val allBids = bids + newUserBid
+            
+            // Sort bids by amount in descending order (highest first)
+            val sortedBids = allBids.sortedByDescending { parseAmount(it.amount) }
+            
+            // Mark only the first (highest) bid as top bid
+            bids = sortedBids.mapIndexed { index, bid ->
+                bid.copy(
+                    isTopBid = index == 0,
+                    isYou = bid.name.equals(name, ignoreCase = true)
+                )
+            }
+            
+            showBidDialog = false
+            timerPaused = false
+            // Reset timer to 30 seconds when a new bid is added
+            timerResetKey++
+        }
     }
     
     
@@ -1340,9 +1514,103 @@ fun UPIEntryScreen(
     paymentMethod: String,
     amount: Int,
     onBack: () -> Unit,
-    onProceed: (String) -> Unit
+    onProceed: (String) -> Unit,
+    auctionId: Int? = null,
+    userId: Int = 25, // TODO: Get from logged in user session
+    saveToDatabase: Boolean = false // Option to save payment to database
 ) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var upiId by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var isProcessing by remember { mutableStateOf(false) }
+    
+    // UPI ID validation function
+    fun isValidUPI(upi: String): Boolean {
+        val upiPattern = Regex("^[a-zA-Z0-9._-]+@[a-zA-Z0-9]+$")
+        return upiPattern.matches(upi.trim())
+    }
+    
+    // Save payment to database
+    fun savePayment(upi: String) {
+        if (!saveToDatabase) {
+            onProceed(upi)
+            return
+        }
+        
+        isProcessing = true
+        scope.launch {
+            var paymentSuccess = false
+            var paymentError: String? = null
+            
+            try {
+                val response = RetrofitInstance.api.createPayment(
+                    com.example.onlinebidding.api.CreatePaymentRequest(
+                        user_id = userId,
+                        auction_id = auctionId,
+                        amount = amount.toDouble(),
+                        payment_method = paymentMethod,
+                        upi_id = upi
+                    )
+                )
+                
+                if (response.isSuccessful) {
+                    val responseBody = response.body()
+                    if (responseBody?.success == true) {
+                        android.util.Log.d("UPIEntry", "✅ Payment saved: ${responseBody.transaction_id}")
+                        paymentSuccess = true
+                        errorMessage = null
+                    } else {
+                        val error = responseBody?.error ?: "Failed to process payment"
+                        android.util.Log.e("UPIEntry", "❌ Payment failed: $error")
+                        android.util.Log.e("UPIEntry", "   Response code: ${response.code()}")
+                        paymentError = error
+                        errorMessage = error
+                    }
+                } else {
+                    // HTTP error (4xx, 5xx)
+                    val errorBody = response.errorBody()?.string()
+                    val error = try {
+                        response.body()?.error ?: errorBody ?: "HTTP ${response.code()}: Failed to process payment"
+                    } catch (e: Exception) {
+                        "HTTP ${response.code()}: Failed to process payment"
+                    }
+                    android.util.Log.e("UPIEntry", "❌ HTTP Error ${response.code()}: $error")
+                    paymentError = error
+                    errorMessage = error
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("UPIEntry", "❌ Network error: ${e.message}", e)
+                paymentError = "Network error: ${e.message}"
+                errorMessage = paymentError
+            } finally {
+                isProcessing = false
+                
+                // Navigate to success screen regardless of payment result
+                // (Payment will be logged, but user can proceed)
+                if (paymentSuccess) {
+                    android.widget.Toast.makeText(
+                        context,
+                        "Payment processed successfully!",
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                } else {
+                    // Show warning but still proceed
+                    android.util.Log.w("UPIEntry", "⚠️ Payment API failed, but proceeding to success screen")
+                    if (paymentError != null) {
+                        android.widget.Toast.makeText(
+                            context,
+                            "Payment note: $paymentError (proceeding anyway)",
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+                
+                // Always navigate to success screen
+                onProceed(upi)
+            }
+        }
+    }
     
     Column(
         modifier = Modifier
@@ -1382,6 +1650,16 @@ fun UPIEntryScreen(
             fontSize = 14.sp
         )
         
+        if (amount > 0) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                "Amount: ₹${String.format("%,d", amount)}",
+                color = Color(0xFFFFC107),
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium
+            )
+        }
+        
         Spacer(modifier = Modifier.height(32.dp))
         
         Text("UPI ID", color = Color(0xFFFFC107), fontSize = 14.sp, fontWeight = FontWeight.Medium)
@@ -1390,34 +1668,76 @@ fun UPIEntryScreen(
         
         OutlinedTextField(
             value = upiId,
-            onValueChange = { upiId = it },
+            onValueChange = { 
+                upiId = it
+                errorMessage = null // Clear error when user types
+            },
             placeholder = { Text("yourname@upi", color = Color.Gray) },
             leadingIcon = {
                 Icon(Icons.Default.AccountCircle, null, tint = Color(0xFFFFC107))
             },
             modifier = Modifier.fillMaxWidth(),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Color(0xFFFFC107),
-                unfocusedBorderColor = Color(0x33FFC107),
+                focusedBorderColor = if (errorMessage != null) Color.Red else Color(0xFFFFC107),
+                unfocusedBorderColor = if (errorMessage != null) Color.Red else Color(0x33FFC107),
                 focusedContainerColor = Color(0xFF1A1A1A),
-                unfocusedContainerColor = Color(0xFF1A1A1A)
+                unfocusedContainerColor = Color(0xFF1A1A1A),
+                cursorColor = Color(0xFFFFC107),
+                focusedTextColor = Color.White,
+                unfocusedTextColor = Color.White
             ),
             shape = RoundedCornerShape(16.dp),
-            singleLine = true
+            singleLine = true,
+            isError = errorMessage != null
+        )
+        
+        if (errorMessage != null) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                errorMessage!!,
+                color = Color.Red,
+                fontSize = 12.sp
+            )
+        }
+        
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        // UPI ID format hint
+        Text(
+            "Format: yourname@upi (e.g., john@paytm, jane@ybl)",
+            color = Color(0xFF666666),
+            fontSize = 12.sp
         )
         
         Spacer(modifier = Modifier.weight(1f))
         
         Button(
-            onClick = { if (upiId.isNotBlank()) onProceed(upiId) },
+            onClick = { 
+                val trimmedUpi = upiId.trim()
+                if (trimmedUpi.isBlank()) {
+                    errorMessage = "Please enter your UPI ID"
+                } else if (!isValidUPI(trimmedUpi)) {
+                    errorMessage = "Invalid UPI ID format. Use: yourname@upi"
+                } else {
+                    errorMessage = null
+                    savePayment(trimmedUpi)
+                }
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
-            enabled = upiId.isNotBlank(),
+            enabled = upiId.isNotBlank() && !isProcessing,
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF9800)),
             shape = RoundedCornerShape(40.dp)
         ) {
-            Text("Proceed to Pay", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            if (isProcessing) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    color = Color.White
+                )
+            } else {
+                Text("Proceed to Pay", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            }
         }
     }
 }

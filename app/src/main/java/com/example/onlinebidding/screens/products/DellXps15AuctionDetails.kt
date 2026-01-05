@@ -11,7 +11,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.List
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -162,7 +161,6 @@ fun DellXps15AuctionDetails(
             ) {
                 ActionButton("Specs", Icons.Default.Info)
                 ActionButton("Bids", Icons.Default.List, badge = "8")
-                ActionButton("Video", Icons.Default.PlayArrow)
             }
 
             Spacer(modifier = Modifier.height(16.dp))

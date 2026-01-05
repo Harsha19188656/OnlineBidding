@@ -377,7 +377,7 @@ private fun MobileCard(
             Button(
                 onClick = {
                     if (hasCredits) {
-                        navController.navigate("mobile_auction_detail/$index")
+                        navController.navigate("mobile_auction_detail/$index/${mobile.name}")
                     } else {
                         navController.navigate("credits/mobile/$index/${mobile.name}")
                     }

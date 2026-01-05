@@ -474,7 +474,7 @@ private fun AdminMobileCard(
 
             Button(
                 onClick = {
-                    navController.navigate("mobile_auction_detail/$index")
+                    navController.navigate("mobile_auction_detail/$index/${mobile.name}")
                 },
                 modifier = Modifier.weight(1f),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF9800))

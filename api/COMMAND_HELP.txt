@@ -1,0 +1,64 @@
+===========================================
+COMMON COMMAND PROMPT MISTAKES
+===========================================
+
+❌ WRONG - Typing a directory path directly:
+   C:\xampp\htdocs\onlinebidding\api\bids
+   Error: "not recognized as a command"
+
+✅ CORRECT - Use 'cd' to navigate:
+   cd C:\xampp\htdocs\onlinebidding\api\bids
+   This will change your current directory to that folder
+
+===========================================
+BASIC COMMANDS YOU NEED:
+===========================================
+
+1. NAVIGATE TO A FOLDER:
+   cd C:\folder\path
+   
+   Example:
+   cd C:\xampp\htdocs\onlinebidding\api
+
+2. GO BACK ONE FOLDER:
+   cd ..
+   
+3. GO TO ROOT OF CURRENT DRIVE:
+   cd \
+   
+4. LIST FILES IN CURRENT FOLDER:
+   dir
+   
+   Or in PowerShell:
+   ls
+
+5. RUN A BATCH FILE:
+   filename.bat
+   
+   Example:
+   copy_to_xampp.bat
+
+===========================================
+WHAT YOU PROBABLY WANTED TO DO:
+===========================================
+
+If you wanted to CHECK if files exist:
+   dir C:\xampp\htdocs\onlinebidding\api\bids
+
+If you wanted to GO TO that folder:
+   cd C:\xampp\htdocs\onlinebidding\api\bids
+
+If you wanted to RUN a file in that folder:
+   cd C:\xampp\htdocs\onlinebidding\api\bids
+   (then run your file)
+
+===========================================
+QUICK REFERENCE:
+===========================================
+
+cd = Change Directory (navigate to folder)
+dir = Directory (list files)
+cls = Clear Screen
+exit = Close Command Prompt
+
+

@@ -44,6 +44,9 @@ import com.example.onlinebidding.screens.admin.AdminTabletList
 import com.example.onlinebidding.ui.viewmodel.AuthViewModel
 import com.example.onlinebidding.utils.getProductPrice
 import com.example.onlinebidding.utils.calculateCredits
+import com.example.onlinebidding.utils.getGoogleSignInClient
+import com.example.onlinebidding.utils.rememberGoogleSignInLauncher
+import androidx.compose.ui.platform.LocalContext
 import com.example.onlinebidding.R
 
 /* ---------------- ROUTES ---------------- */
@@ -59,14 +62,18 @@ fun AppNavHost() {
     val authState by authViewModel.uiState.collectAsState()
 
     // Update user data when auth state changes
-    LaunchedEffect(authState.token) {
-        if (authState.token != null) {
+    LaunchedEffect(authState.token, authState.role) {
+        val token = authState.token
+        if (token != null && token.isNotBlank()) {
+            android.util.Log.d("AppNavHost", "Token received: ${token.take(10)}..., Role: ${authState.role}, Email: ${authState.email}")
             // Route based on role
             if (authState.role == "admin") {
+                android.util.Log.d("AppNavHost", "Navigating to admin_dashboard")
                 navController.navigate(route = "admin_dashboard") {
                     popUpTo(route = "login") { inclusive = true }
                 }
             } else {
+                android.util.Log.d("AppNavHost", "Navigating to interest")
                 navController.navigate(route = "interest") {
                     popUpTo(route = "login") { inclusive = true }
                 }
@@ -108,9 +115,40 @@ fun AppNavHost() {
         /* ---------- AUTH ---------- */
 
         composable("login") {
+            val context = LocalContext.current
+            val googleSignInClient = remember { getGoogleSignInClient(context) }
+            
+            // Watch for successful Google Sign-In and navigate
+            LaunchedEffect(authState.token, authState.role, authState.loading) {
+                val token = authState.token
+                if (token != null && token.isNotBlank() && !authState.loading) {
+                    android.util.Log.d("LoginScreen", "Token detected in login screen, navigating...")
+                    if (authState.role == "admin") {
+                        navController.navigate(route = "admin_dashboard") {
+                            popUpTo(route = "login") { inclusive = true }
+                        }
+                    } else {
+                        navController.navigate(route = "interest") {
+                            popUpTo(route = "login") { inclusive = true }
+                        }
+                    }
+                }
+            }
+            
+            val googleSignInLauncher = rememberGoogleSignInLauncher(
+                onSignInSuccess = { idToken ->
+                    android.util.Log.d("LoginScreen", "Google Sign-In success, calling viewModel")
+                    authViewModel.googleSignIn(idToken)
+                },
+                onSignInError = { error ->
+                    android.util.Log.e("LoginScreen", "Google Sign-In error: $error")
+                    // Error is already shown via Toast in the helper
+                }
+            )
+            
             LoginPage(
-                onLogin = { email, password ->
-                    authViewModel.login(email, password)
+                onLogin = { email, password, loginType ->
+                    authViewModel.login(email, password, loginType)
                 },
                 onForgotPassword = { navController.navigate(route = "forgot") },
                 onSignUp = { loginType ->
@@ -121,7 +159,11 @@ fun AppNavHost() {
                         navController.navigate(route = "create_account")
                     }
                 },
-                onGoogleSignUp = {},
+                onGoogleSignUp = {
+                    android.util.Log.d("LoginScreen", "Google Sign-Up button clicked")
+                    val signInIntent = googleSignInClient.signInIntent
+                    googleSignInLauncher.launch(signInIntent)
+                },
                 isLoading = authState.loading,
                 errorMessage = authState.error ?: ""
             )
@@ -138,7 +180,7 @@ fun AppNavHost() {
                 onBack = { navController.popBackStack() }
             )
         }
-        
+
         composable("create_admin_account") {
             CreateAccount(
                 isAdmin = true,
@@ -161,14 +203,53 @@ fun AppNavHost() {
 
         composable("forgot") {
             ForgotPassword(
-                onSendOTP = { navController.navigate(route = "otp") },
+                onSendOTP = { email ->
+                    val encodedEmail = java.net.URLEncoder.encode(email, "UTF-8")
+                    navController.navigate(route = "otp/$encodedEmail")
+                },
                 onBack = { navController.popBackStack() }
             )
         }
 
-        composable("otp") {
+        composable("otp/{email}") { backStackEntry ->
+            val encodedEmail = backStackEntry.arguments?.getString("email") ?: ""
+            val email = try {
+                java.net.URLDecoder.decode(encodedEmail, "UTF-8")
+            } catch (e: Exception) {
+                encodedEmail
+            }
             OTPVerification(
-                onVerify = { navController.navigate(route = "otp_success") },
+                email = email,
+                onVerify = { resetToken ->
+                    val encodedToken = java.net.URLEncoder.encode(resetToken, "UTF-8")
+                    navController.navigate(route = "reset_password/$encodedEmail/$encodedToken")
+                },
+                onBack = { navController.popBackStack() }
+            )
+
+        }
+
+        composable("reset_password/{email}/{token}") { backStackEntry ->
+            val encodedEmail = backStackEntry.arguments?.getString("email") ?: ""
+            val encodedToken = backStackEntry.arguments?.getString("token") ?: ""
+            val email = try {
+                java.net.URLDecoder.decode(encodedEmail, "UTF-8")
+            } catch (e: Exception) {
+                encodedEmail
+            }
+            val token = try {
+                java.net.URLDecoder.decode(encodedToken, "UTF-8")
+            } catch (e: Exception) {
+                encodedToken
+            }
+            ResetPassword(
+                email = email,
+                resetToken = token,
+                onPasswordReset = {
+                    navController.navigate(route = "login") {
+                        popUpTo(route = "login") { inclusive = true }
+                    }
+                },
                 onBack = { navController.popBackStack() }
             )
         }
@@ -202,7 +283,7 @@ fun AppNavHost() {
                 }
             )
         }
-        
+
         /* ---------- ADMIN PRODUCT LISTS ---------- */
         composable("admin_laptop_list") {
             AdminLaptopList(
@@ -211,7 +292,7 @@ fun AppNavHost() {
                 userToken = authState.token
             )
         }
-        
+
         composable("admin_mobile_list") {
             AdminMobileList(
                 navController = navController,
@@ -219,7 +300,7 @@ fun AppNavHost() {
                 userToken = authState.token
             )
         }
-        
+
         composable("admin_computer_list") {
             AdminComputerList(
                 navController = navController,
@@ -227,7 +308,7 @@ fun AppNavHost() {
                 userToken = authState.token
             )
         }
-        
+
         composable("admin_monitor_list") {
             AdminMonitorList(
                 navController = navController,
@@ -235,7 +316,7 @@ fun AppNavHost() {
                 userToken = authState.token
             )
         }
-        
+
         composable("admin_tablet_list") {
             AdminTabletList(
                 navController = navController,
@@ -243,7 +324,7 @@ fun AppNavHost() {
                 userToken = authState.token
             )
         }
-        
+
         composable("admin_products") {
             AdminProductList(
                 token = authState.token ?: "",
@@ -256,7 +337,7 @@ fun AppNavHost() {
                 }
             )
         }
-        
+
         composable("admin_product_form") {
             AdminProductForm(
                 token = authState.token ?: "",
@@ -268,7 +349,7 @@ fun AppNavHost() {
                 }
             )
         }
-        
+
         composable("admin_product_form/{category}") { backStackEntry ->
             val category = backStackEntry.arguments?.getString("category") ?: "laptop"
             val initialProduct = com.example.onlinebidding.api.AdminProductItem(
@@ -286,7 +367,7 @@ fun AppNavHost() {
                 auction_status = null,
                 created_at = null
             )
-            
+
             AdminProductForm(
                 token = authState.token ?: "",
                 productId = null,
@@ -297,7 +378,7 @@ fun AppNavHost() {
                 }
             )
         }
-        
+
         composable("admin_product_form/{productId}") { backStackEntry ->
             val productId = backStackEntry.arguments?.getString("productId")?.toIntOrNull()
             AdminProductForm(
@@ -316,8 +397,21 @@ fun AppNavHost() {
         composable("interest") {
             InterestSelection(
                 onComplete = {
-                    navController.navigate(route = "dashboard") {
+                    navController.navigate(route = "welcome") {
                         popUpTo(route = "interest") { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        /* ---------- WELCOME ---------- */
+
+        composable("welcome") {
+            Welcome(
+                email = authState.email ?: "user@example.com",
+                onContinue = {
+                    navController.navigate(route = "dashboard") {
+                        popUpTo(route = "welcome") { inclusive = true }
                     }
                 }
             )
@@ -344,14 +438,41 @@ fun AppNavHost() {
         }
 
         /* ---------- LAPTOP AUCTION DETAIL ---------- */
-        
-        composable("auction_detail/{index}") { backStackEntry ->
+
+        composable("auction_detail/{index}/{laptopName}") { backStackEntry ->
             val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
-            // Try to get auction_id from route parameter, otherwise use index
+            val laptopName = backStackEntry.arguments?.getString("laptopName") ?: ""
+            AuctionDetailsScreen(
+                auctionId = null,
+                laptopIndex = index,
+                laptopName = laptopName,
+                onBack = { navController.popBackStack() },
+                onPlaceBid = { /* Handled in screen */ },
+                navController = navController
+            )
+        }
+        
+        composable("auction_detail/{index}/{auctionId}/{laptopName}") { backStackEntry ->
+            val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
             val auctionId = backStackEntry.arguments?.getString("auctionId")?.toIntOrNull()
+            val laptopName = backStackEntry.arguments?.getString("laptopName") ?: ""
             AuctionDetailsScreen(
                 auctionId = auctionId,
                 laptopIndex = index,
+                laptopName = laptopName,
+                onBack = { navController.popBackStack() },
+                onPlaceBid = { /* Handled in screen */ },
+                navController = navController
+            )
+        }
+        
+        // Backward compatibility routes
+        composable("auction_detail/{index}") { backStackEntry ->
+            val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
+            AuctionDetailsScreen(
+                auctionId = null,
+                laptopIndex = index,
+                laptopName = "",
                 onBack = { navController.popBackStack() },
                 onPlaceBid = { /* Handled in screen */ },
                 navController = navController
@@ -364,6 +485,7 @@ fun AppNavHost() {
             AuctionDetailsScreen(
                 auctionId = auctionId,
                 laptopIndex = index,
+                laptopName = "",
                 onBack = { navController.popBackStack() },
                 onPlaceBid = { /* Handled in screen */ },
                 navController = navController
@@ -388,11 +510,25 @@ fun AppNavHost() {
         }
 
         /* ---------- MOBILE AUCTION DETAIL ---------- */
+
+        composable("mobile_auction_detail/{index}/{mobileName}") { backStackEntry ->
+            val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
+            val mobileName = backStackEntry.arguments?.getString("mobileName") ?: ""
+            MobileAuctionDetailScreen(
+                mobileIndex = index,
+                mobileName = mobileName,
+                onBack = { navController.popBackStack() },
+                onSpecsClick = { /* Show specs dialog */ },
+                onBidClick = { navController.navigate("bid_comments/mobile/$index") }
+            )
+        }
         
+        // Backward compatibility route
         composable("mobile_auction_detail/{index}") { backStackEntry ->
             val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
             MobileAuctionDetailScreen(
                 mobileIndex = index,
+                mobileName = "",
                 onBack = { navController.popBackStack() },
                 onSpecsClick = { /* Show specs dialog */ },
                 onBidClick = { navController.navigate("bid_comments/mobile/$index") }
@@ -444,11 +580,25 @@ fun AppNavHost() {
         }
 
         /* ---------- COMPUTER AUCTION DETAIL ---------- */
+
+        composable("computer_auction_detail/{index}/{computerName}") { backStackEntry ->
+            val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
+            val computerName = backStackEntry.arguments?.getString("computerName") ?: ""
+            ComputerAuctionDetailScreen(
+                computerIndex = index,
+                computerName = computerName,
+                onBack = { navController.popBackStack() },
+                onSpecsClick = { /* Show specs dialog */ },
+                onBidClick = { navController.navigate("bid_comments/computer/$index") }
+            )
+        }
         
+        // Backward compatibility route
         composable("computer_auction_detail/{index}") { backStackEntry ->
             val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
             ComputerAuctionDetailScreen(
                 computerIndex = index,
+                computerName = "",
                 onBack = { navController.popBackStack() },
                 onSpecsClick = { /* Show specs dialog */ },
                 onBidClick = { navController.navigate("bid_comments/computer/$index") }
@@ -534,11 +684,25 @@ fun AppNavHost() {
         }
 
         /* ---------- MONITOR AUCTION DETAIL ---------- */
+
+        composable("monitor_auction_detail/{index}/{monitorName}") { backStackEntry ->
+            val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
+            val monitorName = backStackEntry.arguments?.getString("monitorName") ?: ""
+            MonitorAuctionDetailScreen(
+                monitorIndex = index,
+                monitorName = monitorName,
+                onBack = { navController.popBackStack() },
+                onSpecsClick = { /* Show specs dialog */ },
+                onBidClick = { navController.navigate("bid_comments/monitor/$index") }
+            )
+        }
         
+        // Backward compatibility route
         composable("monitor_auction_detail/{index}") { backStackEntry ->
             val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
             MonitorAuctionDetailScreen(
                 monitorIndex = index,
+                monitorName = "",
                 onBack = { navController.popBackStack() },
                 onSpecsClick = { /* Show specs dialog */ },
                 onBidClick = { navController.navigate("bid_comments/monitor/$index") }
@@ -617,10 +781,24 @@ fun AppNavHost() {
 
         /* ---------- TABLET LIST ---------- */
 
+        composable("tablet_auction_detail/{index}/{tabletName}") { backStackEntry ->
+            val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
+            val tabletName = backStackEntry.arguments?.getString("tabletName") ?: ""
+            TabletAuctionDetailScreen(
+                tabletIndex = index,
+                tabletName = tabletName,
+                onBack = { navController.popBackStack() },
+                onSpecsClick = { /* Show specs dialog */ },
+                onBidClick = { navController.navigate("bid_comments/tablet/$index") }
+            )
+        }
+        
+        // Backward compatibility route
         composable("tablet_auction_detail/{index}") { backStackEntry ->
             val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
             TabletAuctionDetailScreen(
                 tabletIndex = index,
+                tabletName = "",
                 onBack = { navController.popBackStack() },
                 onSpecsClick = { /* Show specs dialog */ },
                 onBidClick = { navController.navigate("bid_comments/tablet/$index") }
@@ -743,7 +921,13 @@ fun AppNavHost() {
                     wins = 3,
                     credits = 120
                 ),
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                onLogout = {
+                    authViewModel.logout()
+                    navController.navigate("login") {
+                        popUpTo("login") { inclusive = true }
+                    }
+                }
             )
         }
 
@@ -762,18 +946,18 @@ fun AppNavHost() {
         }
 
         /* ---------- CREDITS PAYMENT FLOW ---------- */
-        
+
         composable("credits/{type}/{index}/{itemName}") { backStackEntry ->
             val type = backStackEntry.arguments?.getString("type") ?: "laptop"
             val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
             val itemName = backStackEntry.arguments?.getString("itemName") ?: ""
-            
+
             // Get product price and calculate credits dynamically
             val productPrice = getProductPrice(type, index)
             val requiredCredits = calculateCredits(productPrice)
             val creditPrice = 10
             val totalCost = requiredCredits * creditPrice
-            
+
             CreditsScreen(
                 itemName = itemName,
                 requiredCredits = requiredCredits,
@@ -784,13 +968,13 @@ fun AppNavHost() {
                 }
             )
         }
-        
+
         composable("payment_method/{amount}/{itemName}/{type}/{index}") { backStackEntry ->
             val amount = backStackEntry.arguments?.getString("amount")?.toIntOrNull() ?: 100
             val itemName = backStackEntry.arguments?.getString("itemName") ?: ""
             val type = backStackEntry.arguments?.getString("type") ?: "laptop"
             val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
-            
+
             PaymentMethodScreen(
                 amount = amount,
                 onBack = { navController.popBackStack() },
@@ -799,30 +983,33 @@ fun AppNavHost() {
                 }
             )
         }
-        
+
         composable("upi_entry/{method}/{amount}/{itemName}/{type}/{index}") { backStackEntry ->
             val method = backStackEntry.arguments?.getString("method") ?: "phonepe"
             val amount = backStackEntry.arguments?.getString("amount")?.toIntOrNull() ?: 100
             val itemName = backStackEntry.arguments?.getString("itemName") ?: ""
             val type = backStackEntry.arguments?.getString("type") ?: "laptop"
             val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
-            
+
             UPIEntryScreen(
                 paymentMethod = method,
                 amount = amount,
                 onBack = { navController.popBackStack() },
                 onProceed = { upiId ->
                     navController.navigate("payment_processing/$method/$itemName/$type/$index")
-                }
+                },
+                auctionId = null, // Credits payment - no auction_id
+                userId = 25, // TODO: Get from logged in user session
+                saveToDatabase = true // ✅ Automatically save payment
             )
         }
-        
+
         composable("payment_processing/{method}/{itemName}/{type}/{index}") { backStackEntry ->
             val method = backStackEntry.arguments?.getString("method") ?: "phonepe"
             val itemName = backStackEntry.arguments?.getString("itemName") ?: ""
             val type = backStackEntry.arguments?.getString("type") ?: "laptop"
             val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
-            
+
             PaymentProcessingScreen(
                 method = method,
                 onFinished = {
@@ -848,12 +1035,12 @@ fun AppNavHost() {
                 }
             )
         }
-        
+
         composable("payment_success/{itemName}/{type}/{index}") { backStackEntry ->
             val itemName = backStackEntry.arguments?.getString("itemName") ?: ""
             val type = backStackEntry.arguments?.getString("type") ?: "laptop"
             val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
-            
+
             PaymentSuccessScreen(
                 itemName = itemName,
                 onStartBid = {
@@ -861,7 +1048,7 @@ fun AppNavHost() {
                         "laptop" -> navController.navigate("auction_detail/$index") {
                             popUpTo(route = "laptop_list") { inclusive = false }
                         }
-                        "monitor" -> navController.navigate("monitor_auction_detail/$index") {
+                        "monitor" -> navController.navigate("monitor_auction_detail/$index/$itemName") {
                             popUpTo(route = "monitor_list") { inclusive = false }
                         }
                         "computer" -> navController.navigate("computer_auction_detail/$index") {
@@ -880,9 +1067,10 @@ fun AppNavHost() {
         }
 
         /* ---------- BID COMMENTS ---------- */
-        
+
         composable("bid_comments/{index}") { backStackEntry ->
             val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
+            val auctionId = backStackEntry.arguments?.getString("auctionId")?.toIntOrNull()
             val laptops = listOf(
                 "MacBook Pro 16\" M3 Max",
                 "Dell XPS 15 OLED",
@@ -891,17 +1079,20 @@ fun AppNavHost() {
             BidCommentsScreen(
                 itemName = laptops.getOrElse(index) { laptops[0] },
                 laptopIndex = index,
+                auctionId = auctionId,
                 onBack = { navController.popBackStack() },
                 onAddBid = { /* Handle add bid */ },
                 onTimeUp = { winnerName, winnerBid ->
-                    navController.navigate("auction_winner/${laptops.getOrElse(index) { laptops[0] }}/${java.net.URLEncoder.encode(winnerName, "UTF-8")}/$winnerBid")
+                    val auctionIdParam = if (auctionId != null) "/$auctionId" else ""
+                    navController.navigate("auction_winner/${laptops.getOrElse(index) { laptops[0] }}/${java.net.URLEncoder.encode(winnerName, "UTF-8")}/$winnerBid$auctionIdParam")
                 }
             )
         }
-        
+
         composable("bid_comments/{type}/{index}") { backStackEntry ->
             val type = backStackEntry.arguments?.getString("type") ?: "laptop"
             val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
+            val auctionId = backStackEntry.arguments?.getString("auctionId")?.toIntOrNull()
             val itemNames = when (type) {
                 "mobile" -> listOf("iPhone 15 Pro Max", "Samsung Galaxy S24 Ultra", "OnePlus 12 Pro")
                 "tablet" -> listOf("iPad Pro 12.9\" M2", "Samsung Galaxy Tab S9", "Microsoft Surface Pro 9")
@@ -913,47 +1104,158 @@ fun AppNavHost() {
                 itemName = itemNames.getOrElse(index) { itemNames[0] },
                 laptopIndex = index,
                 deviceType = type,
+                auctionId = auctionId,
                 onBack = { navController.popBackStack() },
                 onAddBid = { /* Handle add bid */ },
                 onTimeUp = { winnerName, winnerBid ->
-                    navController.navigate("auction_winner/${itemNames.getOrElse(index) { itemNames[0] }}/${java.net.URLEncoder.encode(winnerName, "UTF-8")}/$winnerBid")
+                    val auctionIdParam = if (auctionId != null) "/$auctionId" else ""
+                    navController.navigate("auction_winner/${itemNames.getOrElse(index) { itemNames[0] }}/${java.net.URLEncoder.encode(winnerName, "UTF-8")}/$winnerBid$auctionIdParam")
                 }
             )
         }
-        
+
+        composable("bid_comments/{type}/{index}/{auctionId}") { backStackEntry ->
+            val type = backStackEntry.arguments?.getString("type") ?: "laptop"
+            val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
+            val auctionId = backStackEntry.arguments?.getString("auctionId")?.toIntOrNull()
+            val itemNames = when (type) {
+                "mobile" -> listOf("iPhone 15 Pro Max", "Samsung Galaxy S24 Ultra", "OnePlus 12 Pro")
+                "tablet" -> listOf("iPad Pro 12.9\" M2", "Samsung Galaxy Tab S9", "Microsoft Surface Pro 9")
+                "computer" -> listOf("Custom Gaming PC RTX", "Mac Studio M2 Ultra", "HP Z8 G5 Workstation")
+                "monitor" -> listOf("LG UltraGear 27\"", "Samsung Odyssey G7", "Dell UltraSharp")
+                else -> listOf("MacBook Pro 16\" M3 Max", "Dell XPS 15 OLED", "ASUS ROG Zephyrus G16")
+            }
+            BidCommentsScreen(
+                itemName = itemNames.getOrElse(index) { itemNames[0] },
+                laptopIndex = index,
+                deviceType = type,
+                auctionId = auctionId,
+                onBack = { navController.popBackStack() },
+                onAddBid = { /* Handle add bid */ },
+                onTimeUp = { winnerName, winnerBid ->
+                    val auctionIdParam = if (auctionId != null) "/$auctionId" else ""
+                    navController.navigate("auction_winner/${itemNames.getOrElse(index) { itemNames[0] }}/${java.net.URLEncoder.encode(winnerName, "UTF-8")}/$winnerBid$auctionIdParam")
+                }
+            )
+        }
+
         /* ---------- AUCTION WINNER ---------- */
-        
+
         composable("auction_winner/{itemName}/{winnerName}/{winningBid}") { backStackEntry ->
             val itemName = backStackEntry.arguments?.getString("itemName") ?: ""
             val winnerName = java.net.URLDecoder.decode(backStackEntry.arguments?.getString("winnerName") ?: "", "UTF-8")
             val winningBid = backStackEntry.arguments?.getString("winningBid") ?: "₹0"
-            
+
+            // Extract amount from winningBid (remove ₹ and commas)
+            val amount = winningBid.replace("₹", "").replace(",", "").toIntOrNull() ?: 0
+
             AuctionWinnerScreen(
                 itemName = itemName,
                 winnerName = winnerName,
                 winningBid = winningBid,
                 onProceedToPayment = {
-                    navController.navigate("last_payment")
+                    navController.navigate("last_payment/$amount")
                 }
             )
         }
-        
+
+        composable("auction_winner/{itemName}/{winnerName}/{winningBid}/{auctionId}") { backStackEntry ->
+            val itemName = backStackEntry.arguments?.getString("itemName") ?: ""
+            val winnerName = java.net.URLDecoder.decode(backStackEntry.arguments?.getString("winnerName") ?: "", "UTF-8")
+            val winningBid = backStackEntry.arguments?.getString("winningBid") ?: "₹0"
+            val auctionId = backStackEntry.arguments?.getString("auctionId")?.toIntOrNull()
+
+            // Extract amount from winningBid (remove ₹ and commas)
+            val amount = winningBid.replace("₹", "").replace(",", "").toIntOrNull() ?: 0
+
+            AuctionWinnerScreen(
+                itemName = itemName,
+                winnerName = winnerName,
+                winningBid = winningBid,
+                onProceedToPayment = {
+                    navController.navigate("last_payment/$amount/$auctionId")
+                }
+            )
+        }
+
         /* ---------- LAST PAYMENT (PAYMENT METHOD) ---------- */
-        
+
+        composable("last_payment/{amount}") { backStackEntry ->
+            val amount = backStackEntry.arguments?.getString("amount")?.toIntOrNull() ?: 0
+
+            LastPaymentScreen(
+                onBack = { navController.popBackStack() },
+                onPaymentMethodSelected = { method ->
+                    navController.navigate("upi_entry_payment/$method/$amount")
+                }
+            )
+        }
+
+        composable("last_payment/{amount}/{auctionId}") { backStackEntry ->
+            val amount = backStackEntry.arguments?.getString("amount")?.toIntOrNull() ?: 0
+            val auctionId = backStackEntry.arguments?.getString("auctionId")?.toIntOrNull()
+
+            LastPaymentScreen(
+                onBack = { navController.popBackStack() },
+                onPaymentMethodSelected = { method ->
+                    navController.navigate("upi_entry_payment/$method/$amount/$auctionId")
+                }
+            )
+        }
+
         composable("last_payment") {
             LastPaymentScreen(
                 onBack = { navController.popBackStack() },
                 onPaymentMethodSelected = { method ->
-                    navController.navigate("upi_entry_payment/$method")
+                    navController.navigate("upi_entry_payment/$method/0")
                 }
             )
         }
-        
+
         /* ---------- UPI ENTRY FOR PAYMENT ---------- */
-        
+
+        composable("upi_entry_payment/{method}/{amount}") { backStackEntry ->
+            val method = backStackEntry.arguments?.getString("method") ?: "phonepe"
+            val amount = backStackEntry.arguments?.getString("amount")?.toIntOrNull() ?: 0
+
+            UPIEntryScreen(
+                paymentMethod = method,
+                amount = amount,
+                onBack = { navController.popBackStack() },
+                onProceed = { upiId ->
+                    navController.navigate("payment_success_logout") {
+                        popUpTo(route = "last_payment") { inclusive = false }
+                    }
+                },
+                auctionId = null, // No auction_id for this flow
+                userId = 25, // TODO: Get from logged in user session
+                saveToDatabase = true // ✅ Automatically save payment
+            )
+        }
+
+        composable("upi_entry_payment/{method}/{amount}/{auctionId}") { backStackEntry ->
+            val method = backStackEntry.arguments?.getString("method") ?: "phonepe"
+            val amount = backStackEntry.arguments?.getString("amount")?.toIntOrNull() ?: 0
+            val auctionId = backStackEntry.arguments?.getString("auctionId")?.toIntOrNull()
+
+            UPIEntryScreen(
+                paymentMethod = method,
+                amount = amount,
+                onBack = { navController.popBackStack() },
+                onProceed = { upiId ->
+                    navController.navigate("payment_success_logout") {
+                        popUpTo(route = "last_payment") { inclusive = false }
+                    }
+                },
+                auctionId = auctionId, // ✅ Pass auction_id for auction winner payments
+                userId = 25, // TODO: Get from logged in user session
+                saveToDatabase = true // ✅ Automatically save payment
+            )
+        }
+
         composable("upi_entry_payment/{method}") { backStackEntry ->
             val method = backStackEntry.arguments?.getString("method") ?: "phonepe"
-            
+
             UPIEntryScreen(
                 paymentMethod = method,
                 amount = 0,
@@ -962,12 +1264,15 @@ fun AppNavHost() {
                     navController.navigate("payment_success_logout") {
                         popUpTo(route = "last_payment") { inclusive = false }
                     }
-                }
+                },
+                auctionId = null,
+                userId = 25, // TODO: Get from logged in user session
+                saveToDatabase = true // ✅ Automatically save payment
             )
         }
-        
+
         /* ---------- PAYMENT SUCCESS LOGOUT ---------- */
-        
+
         composable("payment_success_logout") {
             LogoutScreen(
                 onLogout = {

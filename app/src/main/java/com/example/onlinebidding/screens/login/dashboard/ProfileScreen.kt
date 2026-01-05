@@ -34,7 +34,8 @@ data class UserData(
 @Composable
 fun ProfileScreen(
     userData: UserData,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onLogout: () -> Unit
 ) {
     Box(
         modifier = Modifier
@@ -150,6 +151,47 @@ fun ProfileScreen(
                 StatCard("Total Bids", userData.totalBids)
                 StatCard("Wins", userData.wins)
                 StatCard("Credits", userData.credits)
+            }
+
+            Spacer(Modifier.height(32.dp))
+
+            /* -------- LOGOUT BUTTON -------- */
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(Color(0xFF141414), Color(0xFF0C0C0C))
+                        ),
+                        RoundedCornerShape(16.dp)
+                    )
+                    .border(
+                        1.dp,
+                        Color(0x33FF4444),
+                        RoundedCornerShape(16.dp)
+                    )
+                    .clickable { onLogout() }
+                    .padding(16.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        Icons.Default.ExitToApp,
+                        contentDescription = "Logout",
+                        tint = Color(0xFFFF4444),
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        text = "Logout",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFFFF4444)
+                    )
+                }
             }
         }
     }

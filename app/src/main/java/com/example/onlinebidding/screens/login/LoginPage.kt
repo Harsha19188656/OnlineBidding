@@ -18,10 +18,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.draw.clip
 
 @Composable
 fun LoginPage(
-    onLogin: (String, String) -> Unit,
+    onLogin: (String, String, String) -> Unit, // email, password, loginType
     onForgotPassword: () -> Unit,
     onSignUp: (String) -> Unit, // Pass loginType: "User" or "Admin"
     onGoogleSignUp: () -> Unit,
@@ -196,7 +197,7 @@ fun LoginPage(
                                 .show()
                             return@clickable
                         }
-                        onLogin(email, password)
+                        onLogin(email, password, loginType)
                     },
                 contentAlignment = Alignment.Center
             ) {
@@ -208,6 +209,95 @@ fun LoginPage(
                         fontWeight = FontWeight.Bold
                     )
                 )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            /* -------- OR DIVIDER -------- */
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(1.dp)
+                        .background(Color.Gray.copy(alpha = 0.3f))
+                )
+                BasicText(
+                    text = " OR ",
+                    style = TextStyle(
+                        color = Color.Gray,
+                        fontSize = 12.sp
+                    ),
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(1.dp)
+                        .background(Color.Gray.copy(alpha = 0.3f))
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            /* -------- GOOGLE SIGN IN BUTTON -------- */
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+                    .background(
+                        Color.White,
+                        shape = RoundedCornerShape(30.dp)
+                    )
+                    .clickable(enabled = !isLoading) {
+                        onGoogleSignUp()
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                ) {
+                    // Google Icon (G)
+                    Box(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .background(
+                                Brush.horizontalGradient(
+                                    colors = listOf(
+                                        Color(0xFF4285F4),
+                                        Color(0xFF34A853),
+                                        Color(0xFFFBBC05),
+                                        Color(0xFFEA4335)
+                                    )
+                                ),
+                                shape = RoundedCornerShape(4.dp)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        BasicText(
+                            text = "G",
+                            style = TextStyle(
+                                color = Color.White,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    BasicText(
+                        text = "Sign in with Google",
+                        style = TextStyle(
+                            color = Color.Black,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.weight(1f))

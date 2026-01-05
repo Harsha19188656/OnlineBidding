@@ -1,0 +1,47 @@
+═══════════════════════════════════════════════════
+  QUICK START - Get Your App Working in 5 Steps
+═══════════════════════════════════════════════════
+
+✅ Your app code is READY! Just do these steps:
+
+1. CREATE DATABASE TABLES
+   ────────────────────────
+   → Open: http://localhost/phpmyadmin
+   → Select: onlinebidding database
+   → Click: SQL tab
+   → Copy SQL from: api/create_tables.sql
+   → Paste and click: Go
+   → Should see: "2 queries executed successfully"
+
+2. START XAMPP
+   ────────────
+   → Open XAMPP Control Panel
+   → Start Apache (must be green)
+   → Start MySQL (must be green)
+
+3. CHECK BASE_URL
+   ───────────────
+   → Open: app/src/main/java/.../RetrofitInstance.kt
+   → Line 20: Check BASE_URL
+   → For Emulator: "http://10.0.2.2/onlinebidding/"
+   → For Device: "http://YOUR_IP/onlinebidding/"
+   → Rebuild app after changing!
+
+4. TEST API (OPTIONAL)
+   ────────────────────
+   → Browser: http://localhost/onlinebidding/api/auctions/list.php
+   → Should see JSON response
+
+5. RUN YOUR APP!
+   ─────────────
+   → Build & Run in Android Studio
+   → Check Logcat for API calls
+   → Navigate to auction screens
+
+═══════════════════════════════════════════════════
+  That's it! Your backend is now connected! 🎉
+═══════════════════════════════════════════════════
+
+Need help? Check: api/APP_SETUP_STEPS.md
+
+

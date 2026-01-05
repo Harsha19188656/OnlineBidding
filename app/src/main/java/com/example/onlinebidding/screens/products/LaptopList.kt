@@ -444,9 +444,9 @@ private fun LaptopCard(
                         // Pass auction_id if available, otherwise use index
                         val auctionId = laptop.auctionId
                         if (auctionId != null) {
-                            navController.navigate("auction_detail/$index/$auctionId")
+                            navController.navigate("auction_detail/$index/$auctionId/${laptop.name}")
                         } else {
-                            navController.navigate("auction_detail/$index")
+                            navController.navigate("auction_detail/$index/${laptop.name}")
                         }
                     } else {
                         navController.navigate("credits/laptop/$index/${laptop.name}")

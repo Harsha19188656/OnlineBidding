@@ -22,6 +22,11 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
+import android.widget.Toast
+import com.example.onlinebidding.api.RetrofitInstance
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
 
 /**
  * Polished minimal ForgotPassword screen that compiles without Material.
@@ -29,10 +34,14 @@ import androidx.compose.ui.unit.sp
  */
 @Composable
 fun ForgotPassword(
-    onSendOTP: () -> Unit,
+    onSendOTP: (String) -> Unit, // Pass email to OTP screen
     onBack: () -> Unit
 ) {
-    var email by remember { mutableStateOf("") }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var email by remember { mutableStateOf("harsha168656@gmail.com") } // Pre-filled with user's email
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     // subtle radial glow animation for background
     val glowAnim = rememberInfiniteTransition()
@@ -166,8 +175,27 @@ fun ForgotPassword(
 
                 Spacer(modifier = Modifier.height(6.dp))
 
+                // Error message
+                if (errorMessage != null) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                Color.Red.copy(alpha = 0.1f),
+                                RoundedCornerShape(8.dp)
+                            )
+                            .padding(12.dp)
+                    ) {
+                        BasicText(
+                            errorMessage!!,
+                            style = TextStyle(color = Color(0xFFFF6B6B), fontSize = 13.sp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
+                }
+
                 // Send OTP button with icon + shimmer + disabled state
-                val enabled = email.isNotBlank()
+                val enabled = email.isNotBlank() && !isLoading
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -179,7 +207,71 @@ fun ForgotPassword(
                             else
                                 Brush.horizontalGradient(listOf(Color(0xFF444444), Color(0xFF353535)))
                         )
-                        .clickable(enabled = enabled) { if (enabled) onSendOTP() },
+                        .clickable(enabled = enabled) {
+                            if (enabled) {
+                                scope.launch {
+                                    isLoading = true
+                                    errorMessage = null
+                                    try {
+                                        android.util.Log.d("ForgotPassword", "📧 Sending OTP to: $email")
+
+                                        val response = RetrofitInstance.api.forgotPassword(
+                                            com.example.onlinebidding.api.ForgotPasswordRequest(email = email)
+                                        )
+
+                                        android.util.Log.d("ForgotPassword", "📡 Response Code: ${response.code()}")
+                                        android.util.Log.d("ForgotPassword", "📦 Response Body: ${response.body()}")
+
+                                        if (response.isSuccessful) {
+                                            val responseBody = response.body()
+                                            if (responseBody?.success == true) {
+                                                android.util.Log.d("ForgotPassword", "✅ OTP sent successfully")
+                                                Toast.makeText(context, "OTP sent to your email", Toast.LENGTH_SHORT).show()
+                                                onSendOTP(email)
+                                            } else {
+                                                val error = responseBody?.error ?: responseBody?.message ?: "Failed to send OTP"
+                                                android.util.Log.e("ForgotPassword", "❌ API Error: $error")
+                                                errorMessage = error
+                                                Toast.makeText(context, error, Toast.LENGTH_LONG).show()
+                                            }
+                                        } else {
+                                            val errorBody = response.errorBody()?.string()
+                                            android.util.Log.e("ForgotPassword", "❌ HTTP Error ${response.code()}: $errorBody")
+                                            val errorMsg = when (response.code()) {
+                                                404 -> "API endpoint not found. Make sure forgot-password.php exists on server."
+                                                500 -> "Server error. Check backend logs at C:\\xampp\\apache\\logs\\error.log"
+                                                503 -> "Service unavailable. Backend may be down."
+                                                else -> "Failed to send OTP (Error ${response.code()})"
+                                            }
+                                            errorMessage = errorMsg
+                                            Toast.makeText(context, errorMsg, Toast.LENGTH_LONG).show()
+                                        }
+                                    } catch (e: java.net.UnknownHostException) {
+                                        val errorMsg = "Cannot connect to server. Check your internet connection and backend URL."
+                                        android.util.Log.e("ForgotPassword", "❌ Network Error: ${e.message}", e)
+                                        errorMessage = errorMsg
+                                        Toast.makeText(context, errorMsg, Toast.LENGTH_LONG).show()
+                                    } catch (e: java.net.SocketTimeoutException) {
+                                        val errorMsg = "Connection timeout. Backend may be slow or unreachable."
+                                        android.util.Log.e("ForgotPassword", "❌ Timeout Error: ${e.message}", e)
+                                        errorMessage = errorMsg
+                                        Toast.makeText(context, errorMsg, Toast.LENGTH_LONG).show()
+                                    } catch (e: java.io.IOException) {
+                                        val errorMsg = "Network error. Check if backend is running."
+                                        android.util.Log.e("ForgotPassword", "❌ IO Error: ${e.message}", e)
+                                        errorMessage = errorMsg
+                                        Toast.makeText(context, errorMsg, Toast.LENGTH_LONG).show()
+                                    } catch (e: Exception) {
+                                        val errorMsg = "Error: ${e.message ?: "Unknown error"}"
+                                        android.util.Log.e("ForgotPassword", "❌ Exception: ${e.message}", e)
+                                        errorMessage = errorMsg
+                                        Toast.makeText(context, errorMsg, Toast.LENGTH_LONG).show()
+                                    } finally {
+                                        isLoading = false
+                                    }
+                                }
+                            }
+                        },
                     contentAlignment = Alignment.Center
                 ) {
                     // shimmer band
@@ -204,7 +296,7 @@ fun ForgotPassword(
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         BasicText(
-                            text = "Send OTP",
+                            text = if (isLoading) "Sending..." else "Send OTP",
                             style = TextStyle(
                                 color = if (enabled) Color.Black else Color.DarkGray,
                                 fontSize = 16.sp,

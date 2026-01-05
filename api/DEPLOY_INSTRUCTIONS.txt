@@ -1,0 +1,16 @@
+QUICK DEPLOYMENT STEPS:
+========================
+
+1. Open Command Prompt (Windows Key + R, type "cmd", press Enter)
+
+2. Navigate to the api folder:
+   cd C:\Users\ADMIN\AndroidStudioProjects\onlinebidding2\api
+
+3. Run the copy script:
+   copy_to_xampp.bat
+
+4. Make sure XAMPP Apache and MySQL are running!
+
+That's it! Files will be copied automatically.
+
+

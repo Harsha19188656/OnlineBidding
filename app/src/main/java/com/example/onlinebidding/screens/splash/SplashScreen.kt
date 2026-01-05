@@ -17,6 +17,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.layout.ContentScale
+import com.example.onlinebidding.R
 import kotlinx.coroutines.delay
 
 @Composable
@@ -100,7 +104,6 @@ fun SplashScreen(onComplete: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.align(Alignment.Center)
         ) {
-
             Text(
                 text = "BIDHERE",
                 fontSize = 52.sp,

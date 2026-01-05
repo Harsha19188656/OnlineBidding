@@ -13,7 +13,6 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.List
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Person
@@ -163,6 +162,7 @@ private val laptopAuctions = listOf(
 fun AuctionDetailsScreen(
     auctionId: Int? = null,
     laptopIndex: Int = 0, // Fallback for backward compatibility
+    laptopName: String = "",
     onBack: () -> Unit = {},
     onPlaceBid: () -> Unit = {},
     navController: NavHostController? = null
@@ -212,7 +212,12 @@ fun AuctionDetailsScreen(
                             sellerName = "TechMaster Pro", // Default, can be added to backend
                             sellerRating = 4.9, // Default, can be added to backend
                             sales = 248, // Default, can be added to backend
-                            imageRes = R.drawable.ic_macbook, // Fallback
+                            imageRes = when {
+                                product.title.contains("MacBook", ignoreCase = true) -> R.drawable.ic_macbook
+                                product.title.contains("Dell", ignoreCase = true) -> R.drawable.ic_dell_xps
+                                product.title.contains("ASUS", ignoreCase = true) || product.title.contains("ROG", ignoreCase = true) -> R.drawable.ic_asus_rog
+                                else -> R.drawable.ic_macbook // Default
+                            },
                             processor = specsMap["Processor"] ?: specsMap["processor"] ?: "Apple M3 Max",
                             storage = specsMap["Storage"] ?: specsMap["storage"] ?: "1TB SSD",
                             display = specsMap["Display"] ?: specsMap["display"] ?: "16.2\" Liquid",
@@ -245,13 +250,26 @@ fun AuctionDetailsScreen(
     }
     
     // Fetch auction details from backend
-    LaunchedEffect(auctionId) {
+    LaunchedEffect(auctionId, laptopIndex, laptopName) {
         if (auctionId != null && auctionId > 0) {
             currentAuctionId = auctionId
             loadAuctionDetails(auctionId)
         } else {
-            // Use fallback data
-            laptop = laptopAuctions.getOrElse(laptopIndex) { laptopAuctions[0] }
+            // Try to match by name first, then fall back to index
+            laptop = if (laptopName.isNotBlank()) {
+                val normalizedSearchName = laptopName.trim().lowercase()
+                laptopAuctions.find { auction ->
+                    val normalizedAuctionName = auction.name.trim().lowercase()
+                    normalizedAuctionName.contains(normalizedSearchName) || 
+                    normalizedSearchName.contains(normalizedAuctionName) ||
+                    (normalizedAuctionName.contains("macbook") && normalizedSearchName.contains("macbook")) ||
+                    (normalizedAuctionName.contains("dell") && normalizedSearchName.contains("dell")) ||
+                    (normalizedAuctionName.contains("asus") && normalizedSearchName.contains("asus")) ||
+                    (normalizedAuctionName.contains("rog") && normalizedSearchName.contains("rog"))
+                } ?: laptopAuctions.getOrElse(laptopIndex) { laptopAuctions[0] }
+            } else {
+                laptopAuctions.getOrElse(laptopIndex) { laptopAuctions[0] }
+            }
             isLoading = false
         }
     }
@@ -355,30 +373,15 @@ fun AuctionDetailsScreen(
                         ),
                     contentAlignment = Alignment.Center
                 ) {
-                    // Use fallback image for now (can be enhanced to load from URL)
+                    // Product image - clear and high quality
                     Image(
                         painter = painterResource(laptopData.imageRes),
                         contentDescription = laptopData.name,
                         modifier = Modifier
                             .fillMaxSize()
                             .clip(RoundedCornerShape(20.dp)),
-                        contentScale = ContentScale.Crop
+                        contentScale = ContentScale.FillBounds
                     )
-                    
-                    // Play button overlay
-                    Box(
-                        modifier = Modifier
-                            .size(64.dp)
-                            .background(Color.Black.copy(alpha = 0.5f), CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            Icons.Default.PlayArrow,
-                            contentDescription = "Play",
-                            tint = Color(0xFFFFC107),
-                            modifier = Modifier.size(32.dp)
-                        )
-                    }
                 }
 
                 // Verified Seller Badge
@@ -674,7 +677,13 @@ fun AuctionDetailsScreen(
                     "Live updates", 
                     badge = laptopData.totalBids.toString(),
                     onClick = {
-                        navController?.navigate("bid_comments/laptop/$laptopIndex")
+                        // Navigate with auction_id if available, otherwise use index
+                        val route = if (currentAuctionId != null && currentAuctionId!! > 0) {
+                            "bid_comments/laptop/$laptopIndex/${currentAuctionId!!}"
+                        } else {
+                            "bid_comments/laptop/$laptopIndex"
+                        }
+                        navController?.navigate(route)
                     }
                 )
                 }
@@ -835,28 +844,47 @@ fun AuctionDetailsScreen(
                                 com.example.onlinebidding.api.PlaceBidRequest(
                                     auction_id = currentAuctionId!!,
                                     amount = bidAmount,
-                                    user_id = 1 // TODO: Get from logged in user
+                                    user_id = 25 // TODO: Get from logged in user session - using 25 for now (Admin User)
                                 )
                             )
                             
-                            if (response.isSuccessful && response.body()?.success == true) {
-                                android.util.Log.d("AuctionDetails", "✅ Bid placed successfully!")
-                                // Refresh auction details
-                                loadAuctionDetails(currentAuctionId!!)
-                                showBidDialog = false
-                                
-                                // Show success toast
-                                android.widget.Toast.makeText(
-                                    context,
-                                    "Bid placed successfully!",
-                                    android.widget.Toast.LENGTH_SHORT
-                                ).show()
+                            if (response.isSuccessful) {
+                                val responseBody = response.body()
+                                if (responseBody?.success == true) {
+                                    android.util.Log.d("AuctionDetails", "✅ Bid placed successfully!")
+                                    // Refresh auction details
+                                    loadAuctionDetails(currentAuctionId!!)
+                                    showBidDialog = false
+                                    
+                                    // Show success toast
+                                    android.widget.Toast.makeText(
+                                        context,
+                                        "Bid placed successfully!",
+                                        android.widget.Toast.LENGTH_SHORT
+                                    ).show()
+                                } else {
+                                    // API returned success=false
+                                    val error = responseBody?.error ?: "Failed to place bid"
+                                    android.util.Log.e("AuctionDetails", "❌ Bid rejected by API: $error")
+                                    android.util.Log.e("AuctionDetails", "   Response code: ${response.code()}")
+                                    android.widget.Toast.makeText(
+                                        context,
+                                        "Bid rejected: $error",
+                                        android.widget.Toast.LENGTH_LONG
+                                    ).show()
+                                }
                             } else {
-                                val error = response.body()?.error ?: "Failed to place bid"
-                                android.util.Log.e("AuctionDetails", "❌ Bid failed: $error")
+                                // HTTP error (4xx, 5xx)
+                                val errorBody = response.errorBody()?.string()
+                                val error = try {
+                                    response.body()?.error ?: errorBody ?: "HTTP ${response.code()}: Failed to place bid"
+                                } catch (e: Exception) {
+                                    "HTTP ${response.code()}: Failed to place bid"
+                                }
+                                android.util.Log.e("AuctionDetails", "❌ HTTP Error ${response.code()}: $error")
                                 android.widget.Toast.makeText(
                                     context,
-                                    error,
+                                    "Error: $error",
                                     android.widget.Toast.LENGTH_LONG
                                 ).show()
                             }

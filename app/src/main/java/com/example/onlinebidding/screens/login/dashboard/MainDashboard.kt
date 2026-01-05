@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -33,11 +34,11 @@ fun MainDashboard(
     val scroll = rememberScrollState()
 
     val categories = listOf(
-        DashboardCategory("Laptops", R.drawable.ic_laptops, 24, "laptop_list"),
-        DashboardCategory("Mobiles", R.drawable.ic_mobiles, 36, "mobile_list"),
-        DashboardCategory("Computers", R.drawable.ic_computer, 18, "computer_list"),
-        DashboardCategory("Monitors", R.drawable.ic_monitors, 15, "monitor_list"),
-        DashboardCategory("Tablets", R.drawable.ic_tablets, 22, "tablet_list")
+        DashboardCategory("Laptops", R.drawable.ic_laptops, 3, "laptop_list"),
+        DashboardCategory("Mobiles", R.drawable.ic_mobiles, 3, "mobile_list"),
+        DashboardCategory("Computers", R.drawable.ic_computer, 3, "computer_list"),
+        DashboardCategory("Monitors", R.drawable.ic_monitors, 3, "monitor_list"),
+        DashboardCategory("Tablets", R.drawable.ic_tablets, 3, "tablet_list")
     )
 
     Surface(
@@ -71,21 +72,14 @@ fun MainDashboard(
                     )
                 }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Icon(
-                        imageVector = Icons.Default.Notifications,
-                        contentDescription = null,
-                        tint = Color(0xFFFFC107)
-                    )
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = "Profile",
-                        tint = Color(0xFFFFC107),
-                        modifier = Modifier.clickable {
-                            onNavigate("profile")
-                        }
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Default.Person,
+                    contentDescription = "Profile",
+                    tint = Color(0xFFFFC107),
+                    modifier = Modifier.clickable {
+                        onNavigate("profile")
+                    }
+                )
             }
 
             Spacer(Modifier.height(24.dp))
@@ -95,15 +89,29 @@ fun MainDashboard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp)
-                    .background(Color(0xFF1A1A1A), RoundedCornerShape(16.dp))
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(Color(0xFF1A1A1A), Color(0xFF151515))
+                        ),
+                        RoundedCornerShape(16.dp)
+                    )
                     .clickable { onNavigate("search") }
                     .padding(horizontal = 16.dp),
                 contentAlignment = Alignment.CenterStart
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(imageVector = Icons.Default.Search, contentDescription = null, tint = Color(0x99FFD700))
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = null,
+                        tint = Color(0x99FFD700),
+                        modifier = Modifier.size(20.dp)
+                    )
                     Spacer(Modifier.width(12.dp))
-                    Text("Search auctions...", color = Color(0x66FFD700))
+                    Text(
+                        "Search auctions...",
+                        fontSize = 15.sp,
+                        color = Color(0x99FFD700)
+                    )
                 }
             }
 
@@ -136,7 +144,8 @@ fun MainDashboard(
             Text(
                 text = "Browse Categories",
                 fontSize = 18.sp,
-                color = Color(0xCCFFD700)
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFFFFD700)
             )
 
             Spacer(Modifier.height(16.dp))
@@ -176,35 +185,42 @@ private fun CategoryRow(
                 Brush.horizontalGradient(
                     listOf(Color(0xFF1A1A1A), Color(0xFF0E0E0E))
                 ),
-                RoundedCornerShape(18.dp)
+                RoundedCornerShape(16.dp)
             )
             .clickable { onNavigate() }
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // Icon container - perfectly fitted circle
         Box(
             modifier = Modifier
-                .width(64.dp)
-                .height(48.dp)
+                .size(56.dp)
                 .background(
                     Brush.linearGradient(
-                        listOf(Color(0x55FFD700), Color(0x22FF9800))
+                        listOf(Color(0x66FFD700), Color(0x33FF9800))
                     ),
-                    RoundedCornerShape(14.dp)
+                    CircleShape
                 ),
             contentAlignment = Alignment.Center
         ) {
             Image(
                 painter = painterResource(category.imageRes),
                 contentDescription = null,
-                modifier = Modifier.size(32.dp)
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
             )
         }
 
         Spacer(Modifier.width(16.dp))
 
         Column(modifier = Modifier.weight(1f)) {
-            Text(category.name, fontSize = 18.sp, color = Color(0xFFFFE082))
+            Text(
+                category.name,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFFFFE082)
+            )
+            Spacer(Modifier.height(4.dp))
             Text(
                 "${category.count} live auctions",
                 fontSize = 13.sp,
@@ -212,7 +228,14 @@ private fun CategoryRow(
             )
         }
 
-        Icon(imageVector = Icons.Default.ArrowForward, contentDescription = null, tint = Color(0x66FFD700))
+        Spacer(Modifier.width(8.dp))
+        
+        Icon(
+            imageVector = Icons.Default.ArrowForward,
+            contentDescription = null,
+            tint = Color(0x99FFD700),
+            modifier = Modifier.size(20.dp)
+        )
     }
 }
 
@@ -233,12 +256,27 @@ private fun QuickActionCard(
                 RoundedCornerShape(18.dp)
             )
             .clickable { onClick() }
-            .padding(16.dp)
+            .padding(18.dp)
     ) {
-        Icon(imageVector = icon, contentDescription = null, tint = Color(0xFFFFC107))
-        Spacer(Modifier.height(8.dp))
-        Text(title, color = Color(0xFFFFE082), fontSize = 16.sp)
-        Text(subtitle, color = Color(0x99FFD700), fontSize = 12.sp)
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = Color(0xFFFFC107),
+            modifier = Modifier.size(24.dp)
+        )
+        Spacer(Modifier.height(10.dp))
+        Text(
+            title,
+            color = Color(0xFFFFE082),
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+        Spacer(Modifier.height(2.dp))
+        Text(
+            subtitle,
+            color = Color(0x99FFD700),
+            fontSize = 12.sp
+        )
     }
 }
 

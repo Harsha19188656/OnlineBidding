@@ -496,7 +496,7 @@ private fun AdminTabletCard(
                 colors = listOf(Color(0xFFFFD54F), Color(0xFFFFA000)),
                 onClick = {
                     if (hasCredits) {
-                        navController?.navigate("tablet_auction_detail/$index")
+                        navController?.navigate("tablet_auction_detail/$index/${product.name}")
                     } else {
                         navController?.navigate("credits/tablet/$index/${product.name}")
                     }

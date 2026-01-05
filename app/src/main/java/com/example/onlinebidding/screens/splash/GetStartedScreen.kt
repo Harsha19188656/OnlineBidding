@@ -27,6 +27,15 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.layout.ContentScale
+import com.example.onlinebidding.R
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.math.PI
 
 @Composable
 fun GetStartedScreen(
@@ -47,64 +56,12 @@ fun GetStartedScreen(
         ) {
             Spacer(modifier = Modifier.height(40.dp))
 
-            /* ---------- Scales of Justice Icon ---------- */
-            // Custom scales of justice icon
-            Box(
-                modifier = Modifier
-                    .size(120.dp)
-                    .drawBehind {
-                        val centerX = size.width / 2
-                        val centerY = size.height / 2
-                        val scaleWidth = size.width * 0.6f
-                        val scaleHeight = size.height * 0.4f
-                        val plateSize = scaleWidth * 0.25f
-                        
-                        // Draw the base/stand
-                        drawLine(
-                            color = Color(0xFF4FC3F7),
-                            start = Offset(centerX, centerY + scaleHeight * 0.3f),
-                            end = Offset(centerX, centerY + scaleHeight * 0.6f),
-                            strokeWidth = 8f
-                        )
-                        
-                        // Draw the horizontal beam
-                        drawLine(
-                            color = Color(0xFF4FC3F7),
-                            start = Offset(centerX - scaleWidth * 0.4f, centerY),
-                            end = Offset(centerX + scaleWidth * 0.4f, centerY),
-                            strokeWidth = 6f
-                        )
-                        
-                        // Draw left plate (scale)
-                        drawOval(
-                            color = Color(0xFF4FC3F7),
-                            topLeft = Offset(centerX - scaleWidth * 0.4f - plateSize / 2, centerY - plateSize / 2),
-                            size = Size(plateSize, plateSize),
-                            style = Stroke(width = 4f)
-                        )
-                        
-                        // Draw right plate (scale)
-                        drawOval(
-                            color = Color(0xFF4FC3F7),
-                            topLeft = Offset(centerX + scaleWidth * 0.4f - plateSize / 2, centerY - plateSize / 2),
-                            size = Size(plateSize, plateSize),
-                            style = Stroke(width = 4f)
-                        )
-                        
-                        // Draw connecting lines from beam to plates
-                        drawLine(
-                            color = Color(0xFF4FC3F7),
-                            start = Offset(centerX - scaleWidth * 0.4f, centerY),
-                            end = Offset(centerX - scaleWidth * 0.4f, centerY - plateSize / 2),
-                            strokeWidth = 3f
-                        )
-                        drawLine(
-                            color = Color(0xFF4FC3F7),
-                            start = Offset(centerX + scaleWidth * 0.4f, centerY),
-                            end = Offset(centerX + scaleWidth * 0.4f, centerY - plateSize / 2),
-                            strokeWidth = 3f
-                        )
-                    }
+            /* ---------- Bid Icon ---------- */
+            Image(
+                painter = painterResource(id = R.drawable.ic_bid),
+                contentDescription = "Bid Icon",
+                modifier = Modifier.size(180.dp),
+                contentScale = ContentScale.Fit
             )
 
             Spacer(modifier = Modifier.height(32.dp))

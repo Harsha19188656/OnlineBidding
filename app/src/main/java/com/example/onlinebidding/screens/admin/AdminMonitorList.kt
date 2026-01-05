@@ -64,6 +64,7 @@ private fun com.example.onlinebidding.api.AuctionListItem.toMonitorProduct(): Mo
     val price = this.price ?: "₹${String.format("%.0f", this.auction.current_price)}"
     
     val image = when {
+        name.contains("Logitech", ignoreCase = true) || name.contains("mouse", ignoreCase = true) -> R.drawable.ic_mouse
         name.contains("Samsung", ignoreCase = true) -> R.drawable.ic_monitor_samsung
         name.contains("LG", ignoreCase = true) -> R.drawable.ic_monitor_lg
         name.contains("Dell", ignoreCase = true) -> R.drawable.ic_monitor_dell
@@ -484,7 +485,7 @@ fun AdminMonitorCard(
             Button(
                 onClick = {
                     if (hasCredits) {
-                        navController.navigate("monitor_auction_detail/$index")
+                        navController.navigate("monitor_auction_detail/$index/${monitor.name}")
                     } else {
                         navController.navigate("credits/monitor/$index/${monitor.name}")
                     }
