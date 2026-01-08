@@ -30,3 +30,5 @@ Write-Host "`nCheck database:" -ForegroundColor Yellow
 Write-Host "SELECT * FROM bids ORDER BY created_at DESC LIMIT 5;" -ForegroundColor Cyan
 
 
+
+

@@ -783,31 +783,31 @@ fun SpecificationsDialog(
                 )
             } else {
                 when (deviceIndex) {
-                    0 -> mapOf( // Samsung Odyssey G9
-                        "Size" to "49 inch Curved",
-                        "Resolution" to "5120x1440 DQHD",
-                        "Refresh Rate" to "240Hz",
-                        "Panel" to "Quantum Dot VA",
-                        "HDR" to "HDR1000",
-                        "Response" to "1ms GtG"
-                    )
-                    1 -> mapOf( // LG UltraFine 5K
-                        "Size" to "27 inch",
-                        "Resolution" to "5120x2880 5K",
-                        "Color Gamut" to "P3 Wide Color",
-                        "Brightness" to "500 nits",
-                        "Ports" to "Thunderbolt 3",
-                        "Built" to "Webcam + Speakers"
-                    )
-                    2 -> mapOf( // Dell UltraSharp U3423WE
-                        "Size" to "34 inch Ultrawide",
-                        "Resolution" to "3440x1440 WQHD",
-                        "Color Gamut" to "99% sRGB",
-                        "Brightness" to "400 nits",
-                        "Ports" to "USB-C Hub 90W",
-                        "Built" to "KVM Switch"
-                    )
-                    else -> mapOf()
+            0 -> mapOf( // Samsung Odyssey G9
+                "Size" to "49 inch Curved",
+                "Resolution" to "5120x1440 DQHD",
+                "Refresh Rate" to "240Hz",
+                "Panel" to "Quantum Dot VA",
+                "HDR" to "HDR1000",
+                "Response" to "1ms GtG"
+            )
+            1 -> mapOf( // LG UltraFine 5K
+                "Size" to "27 inch",
+                "Resolution" to "5120x2880 5K",
+                "Color Gamut" to "P3 Wide Color",
+                "Brightness" to "500 nits",
+                "Ports" to "Thunderbolt 3",
+                "Built" to "Webcam + Speakers"
+            )
+            2 -> mapOf( // Dell UltraSharp U3423WE
+                "Size" to "34 inch Ultrawide",
+                "Resolution" to "3440x1440 WQHD",
+                "Color Gamut" to "99% sRGB",
+                "Brightness" to "400 nits",
+                "Ports" to "USB-C Hub 90W",
+                "Built" to "KVM Switch"
+            )
+            else -> mapOf()
                 }
             }
         }

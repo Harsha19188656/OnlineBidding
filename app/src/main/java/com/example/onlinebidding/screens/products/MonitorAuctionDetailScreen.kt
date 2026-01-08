@@ -63,7 +63,7 @@ data class MonitorAuctionData(
     val timeRemaining: String = "0:30"
 )
 
- private val monitorAuctions = listOf(
+private val monitorAuctions = listOf(
     // Logitech Mouse (Index 0 - used when product name contains 'Logitech' or 'mouse')
     MonitorAuctionData(
         name = "Logitech mouse",

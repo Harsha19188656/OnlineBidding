@@ -143,3 +143,5 @@ Copy the OTP from the response or error log and use it in your app!
 The OTP is being generated and saved to the database - you just need to retrieve it from the response or logs since email isn't configured.
 
 
+
+

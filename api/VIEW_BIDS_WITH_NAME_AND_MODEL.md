@@ -115,3 +115,5 @@ SELECT * FROM bids_with_details ORDER BY amount DESC;
 This shows all bids sorted by amount (highest first), with names and product names included!
 
 
+
+

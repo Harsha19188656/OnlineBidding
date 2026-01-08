@@ -95,3 +95,5 @@ ORDER BY b.amount DESC;
 Just use the JOIN query to see everything together! 🎉
 
 
+
+

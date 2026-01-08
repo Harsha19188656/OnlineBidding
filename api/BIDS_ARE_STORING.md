@@ -95,3 +95,5 @@ SELECT b.id, u.name as user_name, b.amount, p.title as product_name, p.category,
 Just paste this in SQL tab and click Go! ✅
 
 
+
+

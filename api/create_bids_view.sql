@@ -32,3 +32,5 @@ ORDER BY b.created_at DESC;
 -- SELECT candidate_name, amount, product_name, bid_date FROM bids_with_details;
 
 
+
+

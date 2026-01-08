@@ -100,3 +100,5 @@ ORDER BY highest_bid DESC;
 **Just click on `bids_with_details` in the left sidebar - that's it!** 🎉
 
 
+
+

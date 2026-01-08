@@ -78,3 +78,5 @@ After placing bid, you should see:
 - Auction current_price updates to new bid amount
 
 
+
+

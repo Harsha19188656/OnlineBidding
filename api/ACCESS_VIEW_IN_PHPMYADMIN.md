@@ -85,3 +85,5 @@ ORDER BY b.created_at DESC;
 It will display all bids with candidate names and product names automatically - no SQL query needed! 🎉
 
 
+
+

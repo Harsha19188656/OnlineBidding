@@ -118,3 +118,5 @@ SELECT current_price FROM auctions WHERE id = 7;
 5. **Check bid amount** - Must be higher than current_price
 
 
+
+

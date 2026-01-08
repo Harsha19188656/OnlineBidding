@@ -12,14 +12,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -33,8 +29,6 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.example.onlinebidding.R
 import com.example.onlinebidding.screens.products.CreditsState
-import com.example.onlinebidding.api.RetrofitInstance
-import kotlinx.coroutines.launch
 
 /* ---------------- DATA ---------------- */
 data class MonitorProduct(
@@ -45,81 +39,21 @@ data class MonitorProduct(
     val image: Int
 )
 
-// Hardcoded fallback data (used if API fails)
 val monitorList = listOf(
     MonitorProduct("Samsung Odyssey G9 49\"", "Premium Device", 4.8, "₹95,000", R.drawable.ic_monitor_samsung),
     MonitorProduct("LG UltraFine 5K 27\"", "Premium Device", 4.9, "₹68,000", R.drawable.ic_monitor_lg),
     MonitorProduct("Dell UltraSharp U3423WE", "Premium Device", 4.7, "₹52,000", R.drawable.ic_monitor_dell)
 )
 
-// Extension function to map API response to MonitorProduct
-private fun com.example.onlinebidding.api.AuctionListItem.toMonitorProduct(): MonitorProduct {
-    val name = this.name ?: this.product.title
-    val specs = this.specs ?: this.product.specs ?: this.product.condition ?: "Premium Device"
-    val rating = this.rating ?: 4.5
-    val price = this.price ?: "₹${String.format("%.0f", this.auction.current_price)}"
-    
-    val image = when {
-        name.contains("Logitech", ignoreCase = true) || name.contains("mouse", ignoreCase = true) -> R.drawable.ic_mouse
-        name.contains("Samsung", ignoreCase = true) -> R.drawable.ic_monitor_samsung
-        name.contains("LG", ignoreCase = true) -> R.drawable.ic_monitor_lg
-        name.contains("Dell", ignoreCase = true) -> R.drawable.ic_monitor_dell
-        else -> R.drawable.ic_monitor_samsung
-    }
-    
-    return MonitorProduct(
-        name = name,
-        specs = specs,
-        rating = rating,
-        price = price,
-        image = image
-    )
-}
-
 /* ---------------- SCREEN ---------------- */
 @Composable
 fun MonitorList(
     navController: NavHostController,
-    onBack: () -> Unit = {}
+    onBack: () -> Unit = {},
+    userToken: String? = null,
+    userRole: String? = null
 ) {
-    val scope = rememberCoroutineScope()
-    var monitors by remember { mutableStateOf<List<MonitorProduct>>(monitorList) }
-    var isLoading by remember { mutableStateOf(false) }
-
-    // Fetch monitors from backend - refresh when screen is displayed
-    LaunchedEffect(navController.currentBackStackEntry?.id) {
-        isLoading = true
-        scope.launch {
-            try {
-                android.util.Log.d("MonitorList", "🔌 Attempting to connect to backend API...")
-                val response = RetrofitInstance.api.listAuctions(category = "monitor")
-                android.util.Log.d("MonitorList", "📡 API Response Code: ${response.code()}")
-                
-                if (response.isSuccessful && response.body()?.success == true) {
-                    val items = response.body()?.items ?: emptyList()
-                    if (items.isNotEmpty()) {
-                        monitors = items.map { it.toMonitorProduct() }
-                        android.util.Log.d("MonitorList", "✅ Backend Connected! Received ${items.size} monitors from API")
-                    } else {
-                        // API connected but returned empty list - use fallback data
-                        monitors = monitorList
-                        android.util.Log.w("MonitorList", "⚠️ API connected but returned empty list - using fallback data")
-                    }
-                } else {
-                    // Use fallback data on API error
-                    monitors = monitorList
-                    android.util.Log.w("MonitorList", "⚠️ API Error: ${response.code()} - Using fallback data")
-                }
-            } catch (e: Exception) {
-                // Use fallback data on network error
-                android.util.Log.e("MonitorList", "❌ Network Error: ${e.message}", e)
-                monitors = monitorList
-            } finally {
-                isLoading = false
-            }
-        }
-    }
-
+    val isAdmin = userRole == "admin"
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -155,11 +89,22 @@ fun MonitorList(
                 modifier = Modifier.weight(1f)
             )
 
-            Text(
-                text = monitors.size.toString(),
-                color = Color(0xFFFFC107),
-                fontWeight = FontWeight.Bold
-            )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = monitorList.size.toString(),
+                    color = Color(0xFFFFC107),
+                    fontWeight = FontWeight.Bold
+                )
+                
+                // Admin-only Add button
+                if (isAdmin && userToken != null) {
+                    IconButton(onClick = {
+                        navController.navigate("admin_product_form")
+                    }) {
+                        Icon(Icons.Default.Add, "Add Monitor", tint = Color(0xFFFFC107))
+                    }
+                }
+            }
         }
 
         Spacer(modifier = Modifier.height(14.dp))
@@ -185,24 +130,19 @@ fun MonitorList(
         Spacer(modifier = Modifier.height(18.dp))
 
         /* ---------- LIST ---------- */
-        if (isLoading) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(32.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(color = Color(0xFFFFC107))
-            }
-        } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                items(monitors.size) { index ->
-                    MonitorCard(
-                        monitor = monitors[index],
-                        navController = navController,
-                        index = index
-                    )
-                }
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+            items(monitorList.size) { index ->
+                MonitorCard(
+                    monitor = monitorList[index],
+                    navController = navController,
+                    index = index,
+                    isAdmin = isAdmin,
+                    userToken = userToken,
+                    onDelete = {
+                        // For now, just show a message since monitor list uses hardcoded data
+                        // TODO: Connect to backend and implement actual delete
+                    }
+                )
             }
         }
     }
@@ -213,8 +153,12 @@ fun MonitorList(
 fun MonitorCard(
     monitor: MonitorProduct,
     navController: NavHostController,
-    index: Int
+    index: Int,
+    isAdmin: Boolean = false,
+    userToken: String? = null,
+    onDelete: () -> Unit = {}
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val itemId = "monitor_$index"
     val hasCredits = com.example.onlinebidding.screens.products.CreditsState.hasCreditsForItem(itemId)
     Column(
@@ -259,15 +203,31 @@ fun MonitorCard(
                         modifier = Modifier.weight(1f)
                     )
 
-                    Text(
-                        text = "View",
-                        color = Color(0xFFFFC107),
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.clickable {
-                            navController.navigate("monitor_details/$index")
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        // Admin-only Delete button
+                        if (isAdmin && userToken != null) {
+                            Icon(
+                                Icons.Default.Delete,
+                                "Delete",
+                                tint = Color.Red,
+                                modifier = Modifier
+                                    .size(20.dp)
+                                    .clickable {
+                                        android.widget.Toast.makeText(context, "Delete functionality requires backend connection", android.widget.Toast.LENGTH_SHORT).show()
+                                        onDelete()
+                                    }
+                            )
                         }
-                    )
+                        Text(
+                            text = "View",
+                            color = Color(0xFFFFC107),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.clickable {
+                                navController.navigate("monitor_details/$index")
+                            }
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(4.dp))
@@ -320,7 +280,7 @@ fun MonitorCard(
             Button(
                 onClick = {
                     if (hasCredits) {
-                        navController.navigate("monitor_auction_detail/$index/${monitor.name}")
+                        navController.navigate("monitor_auction_detail/$index")
                     } else {
                         navController.navigate("credits/monitor/$index/${monitor.name}")
                     }

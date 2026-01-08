@@ -97,3 +97,5 @@ ON DUPLICATE KEY UPDATE id=1;
 **Quick fix for testing:** Use a valid user_id like 25 (first user in your database).
 
 
+
+

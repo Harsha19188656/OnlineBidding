@@ -34,3 +34,5 @@ LEFT JOIN products p ON a.product_id = p.id
 ORDER BY b.id DESC;
 
 
+
+

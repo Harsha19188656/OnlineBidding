@@ -61,3 +61,5 @@ Bids were not being sorted by amount. When a user placed a bid, it was always sh
 **Fixed! Bids now sort correctly by amount!** 🎉
 
 
+
+

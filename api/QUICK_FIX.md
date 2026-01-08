@@ -56,3 +56,5 @@ curl -X POST http://localhost/onlinebidding/api/forgot-password.php -H "Content-
 4. Verify MySQL is also running in XAMPP
 
 
+
+

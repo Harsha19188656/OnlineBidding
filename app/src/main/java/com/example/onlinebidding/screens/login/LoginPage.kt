@@ -302,6 +302,18 @@ fun LoginPage(
 
             Spacer(modifier = Modifier.weight(1f))
 
+            /* -------- POWERED BY TEXT -------- */
+            BasicText(
+                text = "2026©•Powered by SIMATS Engineering",
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+                style = TextStyle(
+                    color = Color.Gray.copy(alpha = 0.6f),
+                    fontSize = 11.sp
+                )
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             /* -------- SIGN UP -------- */
             Row(
                 modifier = Modifier.align(Alignment.CenterHorizontally)
